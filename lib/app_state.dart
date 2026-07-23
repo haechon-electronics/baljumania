@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'models.dart';
 import 'models2.dart';
+import 'notification_service.dart';
 
 /// 앱 전역 상태 + Hive 저장소
 class AppState extends ChangeNotifier {
@@ -25,6 +26,10 @@ class AppState extends ChangeNotifier {
   List<WorkLog> workLogs = [];
   StoreInfo storeInfo = StoreInfo();
   String storeName = '우리가게';
+
+  // 알림 설정
+  bool notifyEnabled = true;
+  int notifyHour = 9; // 아침 알림 시각 (기본 9시)
 
   bool initialized = false;
 
@@ -57,8 +62,87 @@ class AppState extends ChangeNotifier {
       storeInfo = StoreInfo.fromMap(infoMap);
     }
     if (storeInfo.storeName.isEmpty) storeInfo.storeName = storeName;
+    notifyEnabled = _settingsBox.get('notifyEnabled') as bool? ?? true;
+    notifyHour = _settingsBox.get('notifyHour') as int? ?? 9;
     initialized = true;
     notifyListeners();
+
+    // 알림 스케줄 갱신 (비동기, 실패해도 앱 동작에 영향 없음)
+    rescheduleNotifications();
+  }
+
+  // ===== 알림 =====
+  Future<void> setNotifySettings({bool? enabled, int? hour}) async {
+    if (enabled != null) {
+      notifyEnabled = enabled;
+      await _settingsBox.put('notifyEnabled', enabled);
+    }
+    if (hour != null) {
+      notifyHour = hour;
+      await _settingsBox.put('notifyHour', hour);
+    }
+    notifyListeners();
+    await rescheduleNotifications();
+  }
+
+  /// 발주주기/미입고/재고부족 기반으로 향후 7일치 아침 알림을 다시 예약
+  Future<void> rescheduleNotifications() async {
+    final ns = NotificationService.instance;
+    await ns.cancelAll();
+    if (!notifyEnabled) return;
+
+    final now = DateTime.now();
+    int id = 1;
+
+    for (int day = 0; day < 7; day++) {
+      final target = DateTime(now.year, now.month, now.day + day,
+          notifyHour, 0);
+      if (target.isBefore(now)) continue;
+
+      final msgs = <String>[];
+
+      // 1) 미입고 (예정일 지난 발주) — 매일 아침 리마인드
+      final overdue = orders.where((o) => o.isOverdue).toList();
+      if (overdue.isNotEmpty) {
+        final names = overdue.map((o) => o.supplierName).toSet().join(', ');
+        msgs.add('미입고 발주 ${overdue.length}건이 있어요 ($names). 확인해 주세요!');
+      }
+
+      // 2) 재고 부족
+      final low = stockItems.where((i) => i.isLow).toList();
+      if (low.isNotEmpty) {
+        final names = low.take(3).map((i) => i.name).join(', ');
+        msgs.add('재고 부족: $names${low.length > 3 ? ' 외 ${low.length - 3}개' : ''} — 발주가 필요해요!');
+      }
+
+      // 3) 발주 주기 도래 (해당 날짜 기준)
+      final dueItems = <String>[];
+      for (final item in stockItems) {
+        if (item.orderCycleDays > 0 && item.lastOrderDate != null) {
+          final last = DateTime.tryParse(item.lastOrderDate!);
+          if (last != null) {
+            final daysSince =
+                DateTime(target.year, target.month, target.day)
+                    .difference(DateTime(last.year, last.month, last.day))
+                    .inDays;
+            if (daysSince >= item.orderCycleDays) dueItems.add(item.name);
+          }
+        }
+      }
+      if (dueItems.isNotEmpty) {
+        msgs.add('오늘 발주할 품목: ${dueItems.take(4).join(', ')}${dueItems.length > 4 ? ' 외 ${dueItems.length - 4}개' : ''}');
+      }
+
+      if (msgs.isEmpty) continue;
+
+      await ns.scheduleAt(
+        id: id++,
+        title: '$storeName 발주 알림 🔔',
+        body: msgs.join('\n'),
+        when: target,
+      );
+      if (id > 20) break;
+    }
   }
 
   void _loadAll() {
@@ -123,6 +207,7 @@ class AppState extends ChangeNotifier {
     await _stockBox.put(item.id, item.toMap());
     _loadAll();
     notifyListeners();
+    rescheduleNotifications();
   }
 
   Future<void> deleteStockItem(String id) async {
@@ -157,6 +242,7 @@ class AppState extends ChangeNotifier {
     }
     _loadAll();
     notifyListeners();
+    rescheduleNotifications();
   }
 
   Future<void> deleteOrder(String id) async {
@@ -193,6 +279,7 @@ class AppState extends ChangeNotifier {
     await _orderBox.put(order.id, order.toMap());
     _loadAll();
     notifyListeners();
+    rescheduleNotifications();
   }
 
   /// 전체 입고 처리

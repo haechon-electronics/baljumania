@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../app_state.dart';
 import '../theme.dart';
+import '../notification_service.dart';
 import 'analytics_screen.dart';
+import 'consult_screen.dart';
 import 'menu_screen.dart';
 import 'purchase_screen.dart';
 import 'sales_screen.dart';
@@ -42,6 +44,29 @@ class MoreScreen extends StatelessWidget {
               trailing: const Icon(Icons.chevron_right,
                   color: Colors.white, size: 28),
               onTap: () => _go(context, const StoreWalletScreen()),
+            ),
+          ),
+          const SizedBox(height: 12),
+
+          // AI 업무상담 (강조 카드)
+          Card(
+            margin: EdgeInsets.zero,
+            color: AppColors.accent,
+            child: ListTile(
+              contentPadding:
+                  const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+              leading: const Icon(Icons.support_agent,
+                  color: Colors.white, size: 32),
+              title: const Text('AI 업무상담',
+                  style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white)),
+              subtitle: const Text('세무 · 노무 · 급여 · 우리가게 데이터 즉답',
+                  style: TextStyle(fontSize: 14, color: Colors.white70)),
+              trailing: const Icon(Icons.chevron_right,
+                  color: Colors.white, size: 28),
+              onTap: () => _go(context, const ConsultScreen()),
             ),
           ),
           const SizedBox(height: 20),
@@ -110,6 +135,14 @@ class MoreScreen extends StatelessWidget {
             subtitle: app.storeName,
             onTap: () => _editStoreName(context, app),
           ),
+          _MenuTile(
+            icon: Icons.notifications_active_rounded,
+            title: '발주 알림 설정',
+            subtitle: app.notifyEnabled
+                ? '켜짐 · 매일 ${app.notifyHour}시 (스마트워치 자동 연동)'
+                : '꺼짐',
+            onTap: () => _notifySettings(context, app),
+          ),
           const _ComingSoonTile(
               icon: Icons.receipt_rounded,
               title: '영수증 · 일보 사진 인식',
@@ -152,6 +185,88 @@ class MoreScreen extends StatelessWidget {
   static void _go(BuildContext context, Widget screen) {
     Navigator.push(
         context, MaterialPageRoute(builder: (_) => screen));
+  }
+
+  void _notifySettings(BuildContext context, AppState app) {
+    showModalBottomSheet(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setSheet) => SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.all(20),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                const Text('발주 알림 설정',
+                    style: TextStyle(
+                        fontSize: 20, fontWeight: FontWeight.bold)),
+                const SizedBox(height: 6),
+                const Text(
+                  '미입고·재고부족·발주주기 도래 시 아침에 알려드려요.\n폰 알림이 울리면 갤럭시워치/애플워치에도 자동으로 울립니다. ⌚',
+                  style: TextStyle(fontSize: 14, color: Colors.grey),
+                ),
+                const SizedBox(height: 12),
+                SwitchListTile(
+                  contentPadding: EdgeInsets.zero,
+                  title: const Text('알림 받기',
+                      style: TextStyle(
+                          fontSize: 17, fontWeight: FontWeight.w600)),
+                  value: app.notifyEnabled,
+                  activeThumbColor: AppColors.primary,
+                  onChanged: (v) {
+                    app.setNotifySettings(enabled: v);
+                    setSheet(() {});
+                  },
+                ),
+                if (app.notifyEnabled) ...[
+                  Row(
+                    children: [
+                      const Text('알림 시각',
+                          style: TextStyle(
+                              fontSize: 17, fontWeight: FontWeight.w600)),
+                      const Spacer(),
+                      DropdownButton<int>(
+                        value: app.notifyHour,
+                        style: const TextStyle(
+                            fontSize: 17, color: Colors.black87),
+                        items: List.generate(17, (i) => i + 5)
+                            .map((h) => DropdownMenuItem(
+                                value: h, child: Text('$h시')))
+                            .toList(),
+                        onChanged: (v) {
+                          if (v != null) {
+                            app.setNotifySettings(hour: v);
+                            setSheet(() {});
+                          }
+                        },
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  OutlinedButton.icon(
+                    icon: const Icon(Icons.notifications),
+                    label: const Text('테스트 알림 보내기'),
+                    onPressed: () {
+                      NotificationService.instance.showNow(
+                        '${app.storeName} 발주 알림 🔔',
+                        '테스트 알림입니다! 워치에서도 확인해보세요.',
+                      );
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                            content: Text(
+                                '테스트 알림 전송! (웹 미리보기에서는 안 울리고, 폰 설치 후 동작합니다)')),
+                      );
+                    },
+                  ),
+                ],
+                const SizedBox(height: 8),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
   }
 
   void _editStoreName(BuildContext context, AppState app) {

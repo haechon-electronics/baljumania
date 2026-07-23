@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:intl/date_symbol_data_local.dart';
 import 'package:provider/provider.dart';
 import 'app_state.dart';
+import 'notification_service.dart';
 import 'theme.dart';
 import 'screens/home_screen.dart';
 import 'screens/orders_screen.dart';
@@ -13,6 +14,7 @@ import 'widgets/ad_banner.dart';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await initializeDateFormatting('ko');
+  await NotificationService.instance.init();
   final appState = AppState();
   await appState.init();
   runApp(
