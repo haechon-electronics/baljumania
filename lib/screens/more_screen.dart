@@ -2,6 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../app_state.dart';
 import '../theme.dart';
+import 'analytics_screen.dart';
+import 'menu_screen.dart';
+import 'purchase_screen.dart';
+import 'sales_screen.dart';
+import 'staff_screen.dart';
+import 'store_wallet_screen.dart';
+import 'tax_export_screen.dart';
 
 class MoreScreen extends StatelessWidget {
   const MoreScreen({super.key});
@@ -16,52 +23,97 @@ class MoreScreen extends StatelessWidget {
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
-          // 가게 이름 설정
+          // 가게 서류지갑 (강조 카드)
           Card(
             margin: EdgeInsets.zero,
+            color: AppColors.primary,
             child: ListTile(
               contentPadding:
-                  const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-              leading: const Icon(Icons.storefront_rounded,
-                  color: AppColors.primary, size: 30),
-              title: const Text('가게 이름',
-                  style:
-                      TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-              subtitle: Text(app.storeName,
-                  style: const TextStyle(fontSize: 16)),
-              trailing: const Icon(Icons.edit_rounded, size: 24),
-              onTap: () => _editStoreName(context, app),
+                  const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+              leading: const Icon(Icons.folder_shared_rounded,
+                  color: Colors.white, size: 32),
+              title: Text('${app.storeName} 서류지갑',
+                  style: const TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white)),
+              subtitle: const Text('사업자번호 · 계좌 · 등록증 사진 바로 전송',
+                  style: TextStyle(fontSize: 14, color: Colors.white70)),
+              trailing: const Icon(Icons.chevron_right,
+                  color: Colors.white, size: 28),
+              onTap: () => _go(context, const StoreWalletScreen()),
             ),
           ),
           const SizedBox(height: 20),
 
           const Padding(
             padding: EdgeInsets.only(left: 4, bottom: 8),
-            child: Text('준비 중인 기능',
+            child: Text('가게 운영',
                 style:
                     TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
           ),
+          _MenuTile(
+            icon: Icons.restaurant_menu_rounded,
+            title: '메뉴 & 레시피',
+            subtitle: '레시피 붙여넣기 등록 · 원가율 계산',
+            onTap: () => _go(context, const MenuScreen()),
+          ),
+          _MenuTile(
+            icon: Icons.point_of_sale_rounded,
+            title: '판매 입력',
+            subtitle: '홀/배민/쿠팡이츠 채널별 · 재고 자동 차감',
+            onTap: () => _go(context, const SalesScreen()),
+          ),
+          _MenuTile(
+            icon: Icons.shopping_bag_rounded,
+            title: '간편 구매 기록',
+            subtitle: '쿠팡 · 다이소 · 마트 구매 기록',
+            onTap: () => _go(context, const PurchaseScreen()),
+          ),
+          _MenuTile(
+            icon: Icons.bar_chart_rounded,
+            title: '매출 분석',
+            subtitle: '채널 · 날씨 · 원가율 · 메뉴 순위 · 단가 변동',
+            onTap: () => _go(context, const AnalyticsScreen()),
+          ),
+          const SizedBox(height: 20),
 
-          const _ComingSoonTile(
-              icon: Icons.restaurant_menu_rounded,
-              title: '메뉴 & 레시피',
-              subtitle: '메뉴판 촬영 자동 등록, AI 레시피 초안'),
-          const _ComingSoonTile(
-              icon: Icons.point_of_sale_rounded,
-              title: '판매 입력',
-              subtitle: '일보 촬영 · 수동 입력 · 포스 파일 연동'),
+          const Padding(
+            padding: EdgeInsets.only(left: 4, bottom: 8),
+            child: Text('직원 · 세무',
+                style:
+                    TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+          ),
+          _MenuTile(
+            icon: Icons.people_rounded,
+            title: '직원 & 급여',
+            subtitle: '급여 자동 산정 (3.3% · 4대보험 · 주휴수당)',
+            onTap: () => _go(context, const StaffScreen()),
+          ),
+          _MenuTile(
+            icon: Icons.description_rounded,
+            title: '세무자료 내보내기',
+            subtitle: '매입장 · 매출장 · 급여대장 엑셀(CSV) 전송',
+            onTap: () => _go(context, const TaxExportScreen()),
+          ),
+          const SizedBox(height: 20),
+
+          const Padding(
+            padding: EdgeInsets.only(left: 4, bottom: 8),
+            child: Text('설정 · 준비중',
+                style:
+                    TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+          ),
+          _MenuTile(
+            icon: Icons.storefront_rounded,
+            title: '가게 이름',
+            subtitle: app.storeName,
+            onTap: () => _editStoreName(context, app),
+          ),
           const _ComingSoonTile(
               icon: Icons.receipt_rounded,
-              title: '영수증 분석',
-              subtitle: '영수증 촬영으로 재고 · 단가 자동 등록'),
-          const _ComingSoonTile(
-              icon: Icons.bar_chart_rounded,
-              title: '매출 분석',
-              subtitle: '날씨 요인 · 배달앱 매출 · 원가율 분석'),
-          const _ComingSoonTile(
-              icon: Icons.people_rounded,
-              title: '직원 & 급여',
-              subtitle: '근무 스케줄 · 급여 자동 산정 (3.3%, 4대보험)'),
+              title: '영수증 · 일보 사진 인식',
+              subtitle: '사진 촬영으로 자동 등록 (다음 업데이트)'),
           const _ComingSoonTile(
               icon: Icons.shopping_cart_rounded,
               title: 'B2B 비교 발주',
@@ -81,11 +133,11 @@ class MoreScreen extends StatelessWidget {
                         fontWeight: FontWeight.bold,
                         color: AppColors.primary)),
                 const SizedBox(height: 4),
-                Text('버전 1.0.0 (1차 개발판)',
+                Text('버전 1.0.0',
                     style: TextStyle(
                         fontSize: 14, color: Colors.grey.shade500)),
                 const SizedBox(height: 4),
-                Text('사장님의 가게관리 수첩',
+                Text('사장님의 AI 가게관리 수첩',
                     style: TextStyle(
                         fontSize: 14, color: Colors.grey.shade500)),
               ],
@@ -95,6 +147,11 @@ class MoreScreen extends StatelessWidget {
         ],
       ),
     );
+  }
+
+  static void _go(BuildContext context, Widget screen) {
+    Navigator.push(
+        context, MaterialPageRoute(builder: (_) => screen));
   }
 
   void _editStoreName(BuildContext context, AppState app) {
@@ -134,6 +191,39 @@ class MoreScreen extends StatelessWidget {
   }
 }
 
+class _MenuTile extends StatelessWidget {
+  final IconData icon;
+  final String title;
+  final String subtitle;
+  final VoidCallback onTap;
+
+  const _MenuTile({
+    required this.icon,
+    required this.title,
+    required this.subtitle,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      child: ListTile(
+        contentPadding:
+            const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+        leading: Icon(icon, color: AppColors.primary, size: 30),
+        title: Text(title,
+            style: const TextStyle(
+                fontSize: 17, fontWeight: FontWeight.bold)),
+        subtitle: Text(subtitle,
+            style:
+                TextStyle(fontSize: 14, color: Colors.grey.shade600)),
+        trailing: const Icon(Icons.chevron_right, size: 26),
+        onTap: onTap,
+      ),
+    );
+  }
+}
+
 class _ComingSoonTile extends StatelessWidget {
   final IconData icon;
   final String title;
@@ -166,7 +256,7 @@ class _ComingSoonTile extends StatelessWidget {
                 color: AppColors.primarySoft,
                 borderRadius: BorderRadius.circular(10),
               ),
-              child: const Text('2차 개발',
+              child: const Text('준비중',
                   style: TextStyle(
                       fontSize: 12,
                       fontWeight: FontWeight.bold,

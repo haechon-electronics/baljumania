@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'models.dart';
+import 'models2.dart';
 
 /// 앱 전역 상태 + Hive 저장소
 class AppState extends ChangeNotifier {
@@ -8,10 +9,21 @@ class AppState extends ChangeNotifier {
   late Box _stockBox;
   late Box _orderBox;
   late Box _settingsBox;
+  late Box _menuBox;
+  late Box _saleBox;
+  late Box _purchaseBox;
+  late Box _employeeBox;
+  late Box _workLogBox;
 
   List<Supplier> suppliers = [];
   List<StockItem> stockItems = [];
   List<PurchaseOrder> orders = [];
+  List<MenuModel> menus = [];
+  List<SaleRecord> sales = [];
+  List<SimplePurchase> purchases = [];
+  List<Employee> employees = [];
+  List<WorkLog> workLogs = [];
+  StoreInfo storeInfo = StoreInfo();
   String storeName = '우리가게';
 
   bool initialized = false;
@@ -22,6 +34,11 @@ class AppState extends ChangeNotifier {
     _stockBox = await Hive.openBox('stock');
     _orderBox = await Hive.openBox('orders');
     _settingsBox = await Hive.openBox('settings');
+    _menuBox = await Hive.openBox('menus');
+    _saleBox = await Hive.openBox('sales');
+    _purchaseBox = await Hive.openBox('purchases');
+    _employeeBox = await Hive.openBox('employees');
+    _workLogBox = await Hive.openBox('worklogs');
 
     _loadAll();
 
@@ -35,6 +52,11 @@ class AppState extends ChangeNotifier {
     }
 
     storeName = _settingsBox.get('storeName') as String? ?? '우리가게';
+    final infoMap = _settingsBox.get('storeInfo');
+    if (infoMap is Map) {
+      storeInfo = StoreInfo.fromMap(infoMap);
+    }
+    if (storeInfo.storeName.isEmpty) storeInfo.storeName = storeName;
     initialized = true;
     notifyListeners();
   }
@@ -49,6 +71,19 @@ class AppState extends ChangeNotifier {
         .map((e) => PurchaseOrder.fromMap(e as Map))
         .toList();
     orders.sort((a, b) => b.orderDate.compareTo(a.orderDate));
+    menus = _menuBox.values.map((e) => MenuModel.fromMap(e as Map)).toList();
+    menus.sort((a, b) => a.name.compareTo(b.name));
+    sales = _saleBox.values.map((e) => SaleRecord.fromMap(e as Map)).toList();
+    sales.sort((a, b) => b.date.compareTo(a.date));
+    purchases = _purchaseBox.values
+        .map((e) => SimplePurchase.fromMap(e as Map))
+        .toList();
+    purchases.sort((a, b) => b.date.compareTo(a.date));
+    employees =
+        _employeeBox.values.map((e) => Employee.fromMap(e as Map)).toList();
+    workLogs =
+        _workLogBox.values.map((e) => WorkLog.fromMap(e as Map)).toList();
+    workLogs.sort((a, b) => b.date.compareTo(a.date));
   }
 
   String _newId() => DateTime.now().microsecondsSinceEpoch.toString();
@@ -214,6 +249,189 @@ class AppState extends ChangeNotifier {
 
   String _fmtQty(double q) =>
       q == q.roundToDouble() ? q.toInt().toString() : q.toStringAsFixed(1);
+
+  // ===== 가게 서류지갑 =====
+  Future<void> saveStoreInfo(StoreInfo info) async {
+    storeInfo = info;
+    await _settingsBox.put('storeInfo', info.toMap());
+    if (info.storeName.isNotEmpty && info.storeName != storeName) {
+      await setStoreName(info.storeName);
+    }
+    notifyListeners();
+  }
+
+  // ===== 메뉴/레시피 =====
+  Future<void> saveMenu(MenuModel menu) async {
+    if (menu.id.isEmpty) menu.id = _newId();
+    await _menuBox.put(menu.id, menu.toMap());
+    _loadAll();
+    notifyListeners();
+  }
+
+  Future<void> deleteMenu(String id) async {
+    await _menuBox.delete(id);
+    _loadAll();
+    notifyListeners();
+  }
+
+  MenuModel? menuById(String id) {
+    try {
+      return menus.firstWhere((m) => m.id == id);
+    } catch (_) {
+      return null;
+    }
+  }
+
+  /// 메뉴 원가 계산 (레시피 재료명 ↔ 재고 품목명 매칭)
+  double menuCost(MenuModel menu) {
+    double cost = 0;
+    for (final r in menu.recipe) {
+      final item = _findStockByName(r.name);
+      if (item != null && item.lastPrice > 0) {
+        // 단위가 다르면 근사 환산 (kg<->g)
+        double qty = r.qty;
+        if (r.unit == 'g' && item.unit == 'kg') qty = r.qty / 1000;
+        if (r.unit == 'kg' && item.unit == 'g') qty = r.qty * 1000;
+        cost += qty * item.lastPrice;
+      }
+    }
+    return cost;
+  }
+
+  StockItem? _findStockByName(String name) {
+    final n = name.trim();
+    try {
+      return stockItems.firstWhere((s) => s.name == n);
+    } catch (_) {
+      try {
+        return stockItems
+            .firstWhere((s) => s.name.contains(n) || n.contains(s.name));
+      } catch (_) {
+        return null;
+      }
+    }
+  }
+
+  // ===== 판매 기록 =====
+  Future<void> saveSale(SaleRecord sale, {bool deductStock = true}) async {
+    if (sale.id.isEmpty) sale.id = _newId();
+    await _saleBox.put(sale.id, sale.toMap());
+
+    // 레시피 기반 재고 자동 차감
+    if (deductStock) {
+      for (final entry in sale.menuSales.entries) {
+        final menu = menuById(entry.key);
+        if (menu == null) continue;
+        for (final r in menu.recipe) {
+          final item = _findStockByName(r.name);
+          if (item != null) {
+            double qty = r.qty;
+            if (r.unit == 'g' && item.unit == 'kg') qty = r.qty / 1000;
+            if (r.unit == 'kg' && item.unit == 'g') qty = r.qty * 1000;
+            item.quantity =
+                (item.quantity - qty * entry.value).clamp(0, 999999);
+            await _stockBox.put(item.id, item.toMap());
+          }
+        }
+      }
+    }
+    _loadAll();
+    notifyListeners();
+  }
+
+  Future<void> deleteSale(String id) async {
+    await _saleBox.delete(id);
+    _loadAll();
+    notifyListeners();
+  }
+
+  double saleAmount(SaleRecord sale) {
+    double total = sale.extraAmount;
+    for (final e in sale.menuSales.entries) {
+      final menu = menuById(e.key);
+      if (menu != null) total += menu.price * e.value;
+    }
+    return total;
+  }
+
+  // ===== 간편 구매 =====
+  Future<void> savePurchase(SimplePurchase p) async {
+    if (p.id.isEmpty) p.id = _newId();
+    await _purchaseBox.put(p.id, p.toMap());
+    _loadAll();
+    notifyListeners();
+  }
+
+  Future<void> deletePurchase(String id) async {
+    await _purchaseBox.delete(id);
+    _loadAll();
+    notifyListeners();
+  }
+
+  // ===== 직원/급여 =====
+  Future<void> saveEmployee(Employee e) async {
+    if (e.id.isEmpty) e.id = _newId();
+    await _employeeBox.put(e.id, e.toMap());
+    _loadAll();
+    notifyListeners();
+  }
+
+  Future<void> deleteEmployee(String id) async {
+    await _employeeBox.delete(id);
+    // 해당 직원 근무기록도 삭제
+    final logs = workLogs.where((w) => w.employeeId == id).toList();
+    for (final l in logs) {
+      await _workLogBox.delete(l.id);
+    }
+    _loadAll();
+    notifyListeners();
+  }
+
+  Employee? employeeById(String id) {
+    try {
+      return employees.firstWhere((e) => e.id == id);
+    } catch (_) {
+      return null;
+    }
+  }
+
+  Future<void> saveWorkLog(WorkLog log) async {
+    if (log.id.isEmpty) log.id = _newId();
+    await _workLogBox.put(log.id, log.toMap());
+    _loadAll();
+    notifyListeners();
+  }
+
+  Future<void> deleteWorkLog(String id) async {
+    await _workLogBox.delete(id);
+    _loadAll();
+    notifyListeners();
+  }
+
+  /// 월별 매입 총액 (발주 입고분 + 간편구매)
+  double monthlyPurchaseTotal(String yearMonth) {
+    double total = 0;
+    for (final o in orders) {
+      if (o.orderDate.startsWith(yearMonth)) {
+        for (final l in o.lines) {
+          if (l.received) total += l.total;
+        }
+      }
+    }
+    for (final p in purchases) {
+      if (p.date.startsWith(yearMonth)) total += p.amount;
+    }
+    return total;
+  }
+
+  /// 월별 매출 총액
+  double monthlySalesTotal(String yearMonth) {
+    double total = 0;
+    for (final s in sales) {
+      if (s.date.startsWith(yearMonth)) total += saleAmount(s);
+    }
+    return total;
+  }
 
   // ===== 샘플 데이터 =====
   Future<void> _seedSampleData() async {
