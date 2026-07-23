@@ -117,6 +117,22 @@ class ScanService {
 
   String _promptFor(String task) {
     switch (task) {
+      case 'auto':
+        return '이 사진이 어떤 문서인지 판별하고 내용을 추출하세요. 다음 JSON 형식으로만 답하세요:\n'
+            '{"docType": "receipt|salesReport|bizCert|menu|unknown", "data": {...}}\n\n'
+            'docType 판별 기준:\n'
+            '- receipt: 마트/거래처 영수증, 거래명세서, 구매 내역\n'
+            '- salesReport: 음식점 포스(POS) 매출 리포트, 일일매출/영업일보, 메뉴별 판매수량\n'
+            '- bizCert: 사업자등록증\n'
+            '- menu: 음식점 메뉴판\n'
+            '- unknown: 위 어느 것도 아님\n\n'
+            'data 형식 (docType별):\n'
+            '- receipt: {"store": "매장명", "date": "YYYY-MM-DD", "items": [{"name": "품목", "qty": 숫자, "unit": "단위", "price": 단가숫자}], "total": 총액숫자}\n'
+            '- salesReport: {"date": "YYYY-MM-DD", "menus": [{"name": "메뉴명", "qty": 수량숫자, "amount": 금액숫자}], "total": 총매출숫자}\n'
+            '- bizCert: {"bizNumber": "000-00-00000", "storeName": "상호", "ownerName": "대표자", "address": "주소"}\n'
+            '- menu: {"menus": [{"name": "메뉴명", "price": 가격숫자}]}\n'
+            '- unknown: {}\n'
+            '합계/부가세/카드승인 줄은 items/menus에서 제외. 불명확한 값은 빈문자열 또는 0.';
       case 'receipt':
         return '이 사진은 한국 영수증 또는 거래명세서입니다. 다음 JSON 형식으로만 답하세요:\n'
             '{"store": "매장/거래처명", "date": "YYYY-MM-DD (없으면 빈문자열)", '

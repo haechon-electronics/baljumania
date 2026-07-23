@@ -211,7 +211,10 @@ mixin _ScanFlow<T extends StatefulWidget> on State<T> {
 
 /// ── 1. 영수증 스캔 ──
 class ReceiptScanScreen extends StatefulWidget {
-  const ReceiptScanScreen({super.key});
+  final String? preloadedOcr;
+  final Map<String, dynamic>? preloadedGemini;
+  const ReceiptScanScreen(
+      {super.key, this.preloadedOcr, this.preloadedGemini});
   @override
   State<ReceiptScanScreen> createState() => _ReceiptScanScreenState();
 }
@@ -222,11 +225,24 @@ class _ReceiptScanScreenState extends State<ReceiptScanScreen>
   String _category = '식자재';
   bool _updateStock = true;
 
+  @override
+  void initState() {
+    super.initState();
+    if (widget.preloadedOcr != null || widget.preloadedGemini != null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _apply(widget.preloadedOcr ?? '', widget.preloadedGemini);
+      });
+    }
+  }
+
   Future<void> _scan() async {
     final res = await capture('receipt');
     if (res == null) return;
     final (_, ocr, gemini) = res;
+    _apply(ocr, gemini);
+  }
 
+  void _apply(String ocr, Map<String, dynamic>? gemini) {
     ScannedReceipt r;
     if (gemini != null) {
       r = ScannedReceipt()
@@ -419,7 +435,10 @@ class _ReceiptScanScreenState extends State<ReceiptScanScreen>
 
 /// ── 2. 포스 일보 스캔 ──
 class SalesReportScanScreen extends StatefulWidget {
-  const SalesReportScanScreen({super.key});
+  final String? preloadedOcr;
+  final Map<String, dynamic>? preloadedGemini;
+  const SalesReportScanScreen(
+      {super.key, this.preloadedOcr, this.preloadedGemini});
   @override
   State<SalesReportScanScreen> createState() =>
       _SalesReportScanScreenState();
@@ -430,11 +449,24 @@ class _SalesReportScanScreenState extends State<SalesReportScanScreen>
   ScannedSalesReport? _result;
   String _channel = '홀';
 
+  @override
+  void initState() {
+    super.initState();
+    if (widget.preloadedOcr != null || widget.preloadedGemini != null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _apply(widget.preloadedOcr ?? '', widget.preloadedGemini);
+      });
+    }
+  }
+
   Future<void> _scan() async {
     final res = await capture('salesReport');
     if (res == null) return;
     final (_, ocr, gemini) = res;
+    _apply(ocr, gemini);
+  }
 
+  void _apply(String ocr, Map<String, dynamic>? gemini) {
     ScannedSalesReport r;
     if (gemini != null) {
       r = ScannedSalesReport()
@@ -609,7 +641,14 @@ class _SalesReportScanScreenState extends State<SalesReportScanScreen>
 
 /// ── 3. 사업자등록증 스캔 ──
 class BizCertScanScreen extends StatefulWidget {
-  const BizCertScanScreen({super.key});
+  final String? preloadedOcr;
+  final Map<String, dynamic>? preloadedGemini;
+  final String? preloadedImageB64;
+  const BizCertScanScreen(
+      {super.key,
+      this.preloadedOcr,
+      this.preloadedGemini,
+      this.preloadedImageB64});
   @override
   State<BizCertScanScreen> createState() => _BizCertScanScreenState();
 }
@@ -622,6 +661,16 @@ class _BizCertScanScreenState extends State<BizCertScanScreen>
   final _addrC = TextEditingController();
   String? _imageB64;
   bool _scanned = false;
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.preloadedOcr != null || widget.preloadedGemini != null) {
+      _imageB64 = widget.preloadedImageB64;
+      _applyResult(widget.preloadedOcr ?? '', widget.preloadedGemini);
+      _scanned = true;
+    }
+  }
 
   @override
   void dispose() {
@@ -639,7 +688,11 @@ class _BizCertScanScreenState extends State<BizCertScanScreen>
 
     final bytes = await img.readAsBytes();
     _imageB64 = base64Encode(bytes);
+    _applyResult(ocr, gemini);
+    setState(() => _scanned = true);
+  }
 
+  void _applyResult(String ocr, Map<String, dynamic>? gemini) {
     if (gemini != null) {
       _bizC.text = gemini['bizNumber'] as String? ?? '';
       _nameC.text = gemini['storeName'] as String? ?? '';
@@ -651,10 +704,7 @@ class _BizCertScanScreenState extends State<BizCertScanScreen>
       _nameC.text = r.storeName;
       _ownerC.text = r.ownerName;
       _addrC.text = r.address;
-    } else {
-      toast('글자를 인식하지 못했어요. 사진은 보관됩니다. (웹에서는 AI 키 필요)');
     }
-    setState(() => _scanned = true);
   }
 
   Future<void> _save() async {
@@ -717,7 +767,10 @@ class _BizCertScanScreenState extends State<BizCertScanScreen>
 
 /// ── 4. 메뉴판 스캔 ──
 class MenuBoardScanScreen extends StatefulWidget {
-  const MenuBoardScanScreen({super.key});
+  final String? preloadedOcr;
+  final Map<String, dynamic>? preloadedGemini;
+  const MenuBoardScanScreen(
+      {super.key, this.preloadedOcr, this.preloadedGemini});
   @override
   State<MenuBoardScanScreen> createState() => _MenuBoardScanScreenState();
 }
@@ -726,11 +779,24 @@ class _MenuBoardScanScreenState extends State<MenuBoardScanScreen>
     with _ScanFlow {
   List<ScannedItem>? _menus;
 
+  @override
+  void initState() {
+    super.initState();
+    if (widget.preloadedOcr != null || widget.preloadedGemini != null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _apply(widget.preloadedOcr ?? '', widget.preloadedGemini);
+      });
+    }
+  }
+
   Future<void> _scan() async {
     final res = await capture('menu');
     if (res == null) return;
     final (_, ocr, gemini) = res;
+    _apply(ocr, gemini);
+  }
 
+  void _apply(String ocr, Map<String, dynamic>? gemini) {
     List<ScannedItem> menus;
     if (gemini != null) {
       menus = ((gemini['menus'] as List?) ?? [])

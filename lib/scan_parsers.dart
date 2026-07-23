@@ -44,6 +44,72 @@ class ScannedBizCert {
 double _num(String s) =>
     double.tryParse(s.replaceAll(',', '').replaceAll('원', '').trim()) ?? 0;
 
+/// OCR 텍스트로 문서 종류 자동 판별 (무료 모드용)
+/// 반환: receipt / salesReport / bizCert / menu / unknown
+String classifyDocument(String text) {
+  final t = text.replaceAll(' ', '');
+
+  // 1) 사업자등록증: 확실한 키워드
+  if (t.contains('사업자등록증') ||
+      (t.contains('등록번호') && t.contains('상호')) ||
+      (RegExp(r'\d{3}-\d{2}-\d{5}').hasMatch(t) &&
+          (t.contains('대표자') || t.contains('개업') || t.contains('소재지')))) {
+    return 'bizCert';
+  }
+
+  int salesScore = 0;
+  int receiptScore = 0;
+  int menuScore = 0;
+
+  // 2) 매출일보 신호
+  for (final w in ['영업일보', '일일매출', '매출일보', '매출집계', '판매집계', '메뉴별매출',
+      '상품별매출', '테이블', '객단가', '주문건수', '판매수량', '결제내역', '매출현황']) {
+    if (t.contains(w)) salesScore += 2;
+  }
+
+  // 3) 영수증/구매 신호
+  for (final w in ['영수증', '거래명세', '납품', '카드승인', '승인번호', '부가세',
+      '받은금액', '거스름', '단가', '공급가액', '면세', '과세물품', 'pos', '결제금액']) {
+    if (t.contains(w)) receiptScore += 2;
+  }
+
+  // 4) 메뉴판 신호: "이름 + 4자리이상 가격" 줄이 많고 수량 열이 없음
+  int priceLines = 0;
+  int qtyPriceLines = 0;
+  for (final raw in text.split('\n')) {
+    final line = raw.trim();
+    if (RegExp(r'^(.+?)[\s.·]+([\d,]{4,})\s*원?$').hasMatch(line)) {
+      priceLines++;
+    }
+    if (RegExp(r'^(.+?)\s+(\d{1,4})\s+([\d,]{3,})$').hasMatch(line)) {
+      qtyPriceLines++;
+    }
+  }
+  if (priceLines >= 4 && qtyPriceLines <= 1) menuScore += 3;
+  if (t.contains('메뉴')) menuScore += 1;
+
+  // "수량 금액" 줄이 많으면 영수증 또는 일보
+  if (qtyPriceLines >= 2) {
+    if (salesScore > 0) {
+      salesScore += 2;
+    } else {
+      receiptScore += 1;
+    }
+  }
+
+  final best = [
+    ('salesReport', salesScore),
+    ('receipt', receiptScore),
+    ('menu', menuScore),
+  ]..sort((a, b) => b.$2.compareTo(a.$2));
+
+  if (best.first.$2 == 0) {
+    // 신호 전혀 없으면: 가격 줄 있으면 영수증 추정, 없으면 unknown
+    return qtyPriceLines >= 1 || priceLines >= 2 ? 'receipt' : 'unknown';
+  }
+  return best.first.$1;
+}
+
 /// 날짜 추출 (2025-01-03, 2025.01.03, 2025/01/03, 01/03 등)
 String extractDate(String text) {
   final full = RegExp(r'(20\d{2})[-./년\s]{1,2}(\d{1,2})[-./월\s]{1,2}(\d{1,2})')

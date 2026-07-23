@@ -7,6 +7,7 @@ import '../theme.dart';
 import '../utils.dart';
 import 'order_edit_screen.dart';
 import 'order_detail_screen.dart';
+import 'smart_scan_screen.dart';
 
 class HomeScreen extends StatelessWidget {
   const HomeScreen({super.key});
@@ -43,6 +44,35 @@ class HomeScreen extends StatelessWidget {
                               fontSize: 23,
                               fontWeight: FontWeight.bold,
                               color: Colors.white),
+                        ),
+                      ),
+                      Material(
+                        color: Colors.white.withValues(alpha: 0.18),
+                        borderRadius: BorderRadius.circular(12),
+                        child: InkWell(
+                          borderRadius: BorderRadius.circular(12),
+                          onTap: () => Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                                builder: (_) => const SmartScanScreen()),
+                          ),
+                          child: const Padding(
+                            padding: EdgeInsets.symmetric(
+                                horizontal: 12, vertical: 8),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(Icons.photo_camera_rounded,
+                                    color: Colors.white, size: 22),
+                                SizedBox(width: 6),
+                                Text('촬영',
+                                    style: TextStyle(
+                                        fontSize: 16,
+                                        fontWeight: FontWeight.bold,
+                                        color: Colors.white)),
+                              ],
+                            ),
+                          ),
                         ),
                       ),
                     ],

@@ -8,7 +8,7 @@ import 'consult_screen.dart';
 import 'menu_screen.dart';
 import 'purchase_screen.dart';
 import 'sales_screen.dart';
-import 'scan_screen.dart';
+import 'smart_scan_screen.dart';
 import 'staff_screen.dart';
 import 'store_wallet_screen.dart';
 import 'tax_export_screen.dart';
@@ -58,16 +58,16 @@ class MoreScreen extends StatelessWidget {
                   const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
               leading: const Icon(Icons.photo_camera_rounded,
                   color: Colors.white, size: 32),
-              title: const Text('사진 촬영 인식',
+              title: const Text('스마트 촬영 인식',
                   style: TextStyle(
                       fontSize: 18,
                       fontWeight: FontWeight.bold,
                       color: Colors.white)),
-              subtitle: const Text('영수증 · 포스일보 · 사업자등록증 · 메뉴판 자동입력',
+              subtitle: const Text('찍기만 하면 영수증·매출일보 자동 판별!',
                   style: TextStyle(fontSize: 14, color: Colors.white70)),
               trailing: const Icon(Icons.chevron_right,
                   color: Colors.white, size: 28),
-              onTap: () => _go(context, const ScanHubScreen()),
+              onTap: () => _go(context, const SmartScanScreen()),
             ),
           ),
           const SizedBox(height: 12),
