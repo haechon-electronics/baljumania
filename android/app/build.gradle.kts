@@ -57,6 +57,10 @@ android {
             } else {
                 signingConfigs.getByName("debug")
             }
+            proguardFiles(
+                getDefaultProguardFile("proguard-android-optimize.txt"),
+                "proguard-rules.pro"
+            )
         }
     }
 }
@@ -67,5 +71,7 @@ flutter {
 
 dependencies {
     coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.4")
+    // ML Kit 한국어 텍스트 인식 (영수증/일보/사업자등록증 무료 OCR)
+    implementation("com.google.mlkit:text-recognition-korean:16.0.1")
 }
 

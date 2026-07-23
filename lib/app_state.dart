@@ -3,6 +3,7 @@ import 'package:hive_flutter/hive_flutter.dart';
 import 'models.dart';
 import 'models2.dart';
 import 'notification_service.dart';
+import 'scan_service.dart';
 
 /// 앱 전역 상태 + Hive 저장소
 class AppState extends ChangeNotifier {
@@ -30,6 +31,9 @@ class AppState extends ChangeNotifier {
   // 알림 설정
   bool notifyEnabled = true;
   int notifyHour = 9; // 아침 알림 시각 (기본 9시)
+
+  // AI 정밀인식 (Gemini) 키
+  String get geminiApiKey => ScanService.instance.geminiApiKey;
 
   bool initialized = false;
 
@@ -64,6 +68,8 @@ class AppState extends ChangeNotifier {
     if (storeInfo.storeName.isEmpty) storeInfo.storeName = storeName;
     notifyEnabled = _settingsBox.get('notifyEnabled') as bool? ?? true;
     notifyHour = _settingsBox.get('notifyHour') as int? ?? 9;
+    ScanService.instance.geminiApiKey =
+        _settingsBox.get('geminiApiKey') as String? ?? '';
     initialized = true;
     notifyListeners();
 
@@ -83,6 +89,12 @@ class AppState extends ChangeNotifier {
     }
     notifyListeners();
     await rescheduleNotifications();
+  }
+
+  Future<void> setGeminiApiKey(String key) async {
+    ScanService.instance.geminiApiKey = key.trim();
+    await _settingsBox.put('geminiApiKey', key.trim());
+    notifyListeners();
   }
 
   /// 발주주기/미입고/재고부족 기반으로 향후 7일치 아침 알림을 다시 예약

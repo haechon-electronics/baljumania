@@ -8,6 +8,7 @@ import 'consult_screen.dart';
 import 'menu_screen.dart';
 import 'purchase_screen.dart';
 import 'sales_screen.dart';
+import 'scan_screen.dart';
 import 'staff_screen.dart';
 import 'store_wallet_screen.dart';
 import 'tax_export_screen.dart';
@@ -44,6 +45,29 @@ class MoreScreen extends StatelessWidget {
               trailing: const Icon(Icons.chevron_right,
                   color: Colors.white, size: 28),
               onTap: () => _go(context, const StoreWalletScreen()),
+            ),
+          ),
+          const SizedBox(height: 12),
+
+          // 사진 촬영 인식 (강조 카드)
+          Card(
+            margin: EdgeInsets.zero,
+            color: AppColors.primaryLight,
+            child: ListTile(
+              contentPadding:
+                  const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+              leading: const Icon(Icons.photo_camera_rounded,
+                  color: Colors.white, size: 32),
+              title: const Text('사진 촬영 인식',
+                  style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white)),
+              subtitle: const Text('영수증 · 포스일보 · 사업자등록증 · 메뉴판 자동입력',
+                  style: TextStyle(fontSize: 14, color: Colors.white70)),
+              trailing: const Icon(Icons.chevron_right,
+                  color: Colors.white, size: 28),
+              onTap: () => _go(context, const ScanHubScreen()),
             ),
           ),
           const SizedBox(height: 12),
@@ -136,6 +160,14 @@ class MoreScreen extends StatelessWidget {
             onTap: () => _editStoreName(context, app),
           ),
           _MenuTile(
+            icon: Icons.auto_awesome,
+            title: 'AI 정밀인식 설정',
+            subtitle: app.geminiApiKey.isEmpty
+                ? '꺼짐 (무료 기본인식 사용 중)'
+                : '켜짐 · Gemini 연결됨',
+            onTap: () => _aiSettings(context, app),
+          ),
+          _MenuTile(
             icon: Icons.notifications_active_rounded,
             title: '발주 알림 설정',
             subtitle: app.notifyEnabled
@@ -185,6 +217,82 @@ class MoreScreen extends StatelessWidget {
   static void _go(BuildContext context, Widget screen) {
     Navigator.push(
         context, MaterialPageRoute(builder: (_) => screen));
+  }
+
+  void _aiSettings(BuildContext context, AppState app) {
+    final ctrl = TextEditingController(text: app.geminiApiKey);
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      builder: (ctx) => Padding(
+        padding: EdgeInsets.only(
+          left: 20,
+          right: 20,
+          top: 20,
+          bottom: MediaQuery.of(ctx).viewInsets.bottom + 20,
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            const Text('AI 정밀인식 설정 (Gemini)',
+                style:
+                    TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+            const SizedBox(height: 8),
+            const Text(
+              '키를 넣으면 영수증·일보·사업자등록증 인식률이 크게 올라가요.\n'
+              '비용: 사진 1장당 약 1~5원 (무료 쿼터로도 충분)\n\n'
+              '키 발급: aistudio.google.com 접속 → 구글 로그인 →\n'
+              '"Get API key" 버튼 → 복사해서 아래에 붙여넣기',
+              style: TextStyle(fontSize: 14, color: Colors.grey, height: 1.5),
+            ),
+            const SizedBox(height: 14),
+            TextField(
+              controller: ctrl,
+              style: const TextStyle(fontSize: 15),
+              decoration: const InputDecoration(
+                labelText: 'Gemini API 키',
+                hintText: 'AIza로 시작하는 키 붙여넣기',
+              ),
+            ),
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                if (app.geminiApiKey.isNotEmpty)
+                  Expanded(
+                    child: OutlinedButton(
+                      style: OutlinedButton.styleFrom(
+                          foregroundColor: AppColors.danger),
+                      onPressed: () {
+                        app.setGeminiApiKey('');
+                        Navigator.pop(ctx);
+                      },
+                      child: const Text('키 삭제'),
+                    ),
+                  ),
+                if (app.geminiApiKey.isNotEmpty) const SizedBox(width: 10),
+                Expanded(
+                  flex: 2,
+                  child: FilledButton(
+                    onPressed: () {
+                      app.setGeminiApiKey(ctrl.text);
+                      Navigator.pop(ctx);
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                            content: Text(ctrl.text.trim().isEmpty
+                                ? '무료 기본인식 모드로 설정되었어요'
+                                : 'AI 정밀인식이 켜졌어요! 🎉')),
+                      );
+                    },
+                    child: const Text('저장'),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   void _notifySettings(BuildContext context, AppState app) {
