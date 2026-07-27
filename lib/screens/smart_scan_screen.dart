@@ -1,5 +1,6 @@
 import 'dart:convert';
 
+import 'package:cross_file/cross_file.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
@@ -22,6 +23,10 @@ class _SmartScanScreenState extends State<SmartScanScreen> {
   bool _scanning = false;
   String? _lastFail;
 
+  // 마지막 촬영본 보관 → 판별 틀려도 재촬영 없이 다른 종류로 열 수 있게
+  XFile? _lastImage;
+  String _lastOcr = '';
+
   Future<void> _scan({required bool fromCamera}) async {
     final svc = ScanService.instance;
     final img = await svc.pickImage(fromCamera: fromCamera);
@@ -37,6 +42,8 @@ class _SmartScanScreenState extends State<SmartScanScreen> {
       Map<String, dynamic>? geminiData;
       String ocr = '';
       String? imageB64;
+      _lastImage = img;
+      _lastOcr = '';
 
       // 1차: Gemini 통합 판별 (키 있으면 판별+추출 한 번에)
       final auto = await svc.analyzeWithGemini(img, 'auto');
@@ -49,6 +56,7 @@ class _SmartScanScreenState extends State<SmartScanScreen> {
       } else {
         // 2차: ML Kit 무료 OCR + 키워드 판별
         ocr = await svc.recognizeText(img);
+        _lastOcr = ocr;
         if (ocr.trim().isEmpty) {
           setState(() {
             _scanning = false;
@@ -112,10 +120,8 @@ class _SmartScanScreenState extends State<SmartScanScreen> {
           );
           break;
         default:
-          setState(() {
-            _lastFail = '어떤 문서인지 판별하지 못했어요. 🙏\n'
-                '아래에서 문서 종류를 직접 선택해 주세요.';
-          });
+          // 판별 실패 → 찍은 사진 그대로 종류만 고르게
+          _chooseTypeAndGo();
       }
     } catch (e) {
       if (mounted) {
@@ -177,16 +183,139 @@ class _SmartScanScreenState extends State<SmartScanScreen> {
               OutlinedButton(
                 onPressed: () {
                   Navigator.pop(ctx);
-                  setState(() =>
-                      _lastFail = '아래에서 문서 종류를 직접 선택해 주세요.');
+                  // 재촬영 없이 같은 사진으로 종류만 다시 선택
+                  _chooseTypeAndGo();
                 },
-                child: const Text('아니에요, 직접 선택할게요'),
+                child: const Text('아니에요, 다른 종류예요'),
               ),
             ],
           ),
         ),
       ),
     );
+  }
+
+  /// 판별 실패/오판 시: 이미 찍은 사진으로 문서 종류만 골라서 진행
+  void _chooseTypeAndGo() {
+    if (_lastImage == null) {
+      setState(() =>
+          _lastFail = '아래에서 문서 종류를 직접 선택해 주세요.');
+      return;
+    }
+    showModalBottomSheet(
+      context: context,
+      builder: (ctx) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              const Padding(
+                padding: EdgeInsets.only(bottom: 4, left: 4),
+                child: Text('방금 찍은 사진, 어떤 문서인가요?',
+                    style: TextStyle(
+                        fontSize: 18, fontWeight: FontWeight.bold)),
+              ),
+              const Padding(
+                padding: EdgeInsets.only(bottom: 10, left: 4),
+                child: Text('다시 찍지 않아도 돼요. 종류만 골라주세요!',
+                    style: TextStyle(fontSize: 14, color: Colors.grey)),
+              ),
+              _typePick(ctx, Icons.receipt_long, '영수증 · 구매내역', 'receipt'),
+              _typePick(ctx, Icons.point_of_sale, '포스 매출일보', 'salesReport'),
+              _typePick(ctx, Icons.badge, '사업자등록증', 'bizCert'),
+              _typePick(ctx, Icons.menu_book, '메뉴판', 'menu'),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _typePick(
+      BuildContext ctx, IconData icon, String title, String task) {
+    return Card(
+      margin: const EdgeInsets.only(bottom: 8),
+      child: ListTile(
+        leading: Icon(icon, color: AppColors.primary, size: 28),
+        title: Text(title,
+            style: const TextStyle(
+                fontSize: 17, fontWeight: FontWeight.w600)),
+        trailing: const Icon(Icons.chevron_right),
+        onTap: () {
+          Navigator.pop(ctx);
+          _openWithType(task);
+        },
+      ),
+    );
+  }
+
+  Future<void> _openWithType(String task) async {
+    final img = _lastImage;
+    if (img == null) return;
+
+    setState(() {
+      _scanning = true;
+      _lastFail = null;
+    });
+
+    try {
+      final svc = ScanService.instance;
+      Map<String, dynamic>? gemini;
+      String ocr = _lastOcr;
+
+      // Gemini 있으면 해당 종류 전용 프롬프트로 재분석 (정확도 최고)
+      gemini = await svc.analyzeWithGemini(img, task);
+      // Gemini 없고 OCR도 없으면 지금 OCR 시도
+      if (gemini == null && ocr.trim().isEmpty) {
+        ocr = await svc.recognizeText(img);
+        _lastOcr = ocr;
+      }
+
+      String? imageB64;
+      if (task == 'bizCert') {
+        final bytes = await img.readAsBytes();
+        imageB64 = base64Encode(bytes);
+      }
+
+      if (!mounted) return;
+      setState(() => _scanning = false);
+
+      final Widget screen;
+      switch (task) {
+        case 'receipt':
+          screen = ReceiptScanScreen(
+              preloadedOcr: ocr.isEmpty ? null : ocr,
+              preloadedGemini: gemini);
+          break;
+        case 'salesReport':
+          screen = SalesReportScanScreen(
+              preloadedOcr: ocr.isEmpty ? null : ocr,
+              preloadedGemini: gemini);
+          break;
+        case 'bizCert':
+          screen = BizCertScanScreen(
+              preloadedOcr: ocr.isEmpty ? null : ocr,
+              preloadedGemini: gemini,
+              preloadedImageB64: imageB64);
+          break;
+        default:
+          screen = MenuBoardScanScreen(
+              preloadedOcr: ocr.isEmpty ? null : ocr,
+              preloadedGemini: gemini);
+      }
+      if (!mounted) return;
+      Navigator.push(
+          context, MaterialPageRoute(builder: (_) => screen));
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _scanning = false;
+          _lastFail = '분석 중 문제가 생겼어요. 다시 시도해 주세요.';
+        });
+      }
+    }
   }
 
   @override

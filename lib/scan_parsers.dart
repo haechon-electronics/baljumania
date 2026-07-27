@@ -47,7 +47,7 @@ double _num(String s) =>
 /// OCR 텍스트로 문서 종류 자동 판별 (무료 모드용)
 /// 반환: receipt / salesReport / bizCert / menu / unknown
 String classifyDocument(String text) {
-  final t = text.replaceAll(' ', '');
+  final t = text.replaceAll(' ', '').toLowerCase();
 
   // 1) 사업자등록증: 확실한 키워드
   if (t.contains('사업자등록증') ||
@@ -61,16 +61,33 @@ String classifyDocument(String text) {
   int receiptScore = 0;
   int menuScore = 0;
 
-  // 2) 매출일보 신호
-  for (final w in ['영업일보', '일일매출', '매출일보', '매출집계', '판매집계', '메뉴별매출',
-      '상품별매출', '테이블', '객단가', '주문건수', '판매수량', '결제내역', '매출현황']) {
+  // 2) 매출일보: 확실한 신호 (강함)
+  for (final w in ['영업일보', '일일매출', '매출일보', '매출일계', '일계표', '매출집계',
+      '판매집계', '마감정산', '정산표', '정산서', '매출현황', '매출요약', '매출분석',
+      '메뉴별매출', '상품별매출', '메뉴별판매', '상품별판매', '포스마감', '영업마감']) {
+    if (t.contains(w)) salesScore += 3;
+  }
+  // 매출일보: 보조 신호
+  for (final w in ['총매출', '순매출', '매출합계', '매출액', '매출내역', '매출건수',
+      '카드매출', '현금매출', '객단가', '주문건수', '판매수량', '판매금액',
+      '결제수단', '시간대별', '테이블', '회전율', '할인액', '건수']) {
     if (t.contains(w)) salesScore += 2;
   }
+  if (t.contains('일보')) salesScore += 3;
+  if (t.contains('마감')) salesScore += 2;
+  if (t.contains('정산')) salesScore += 2;
+  if (t.contains('매출')) salesScore += 1;
+  // 카드매출 + 현금매출 동시 등장 = 일보 확정급
+  if (t.contains('카드매출') && t.contains('현금매출')) salesScore += 4;
 
-  // 3) 영수증/구매 신호
-  for (final w in ['영수증', '거래명세', '납품', '카드승인', '승인번호', '부가세',
-      '받은금액', '거스름', '단가', '공급가액', '면세', '과세물품', 'pos', '결제금액']) {
-    if (t.contains(w)) receiptScore += 2;
+  // 3) 영수증/구매: 확실한 신호 (영수증에만 나오는 단어)
+  for (final w in ['영수증', '카드승인', '승인번호', '승인금액', '거스름', '받은금액',
+      '거래명세', '납품서', '교환/환불', '반품', '일시불', '할부']) {
+    if (t.contains(w)) receiptScore += 3;
+  }
+  // 영수증: 보조 신호 (일보에도 자주 나오는 단어라 약하게)
+  for (final w in ['부가세', '단가', '공급가액', '면세', '과세물품', '결제금액', '신용카드']) {
+    if (t.contains(w)) receiptScore += 1;
   }
 
   // 4) 메뉴판 신호: "이름 + 4자리이상 가격" 줄이 많고 수량 열이 없음
@@ -95,6 +112,11 @@ String classifyDocument(String text) {
     } else {
       receiptScore += 1;
     }
+  }
+
+  // 동점이면 '매출' 단어 있을 때 일보 우선
+  if (salesScore == receiptScore && salesScore > 0 && t.contains('매출')) {
+    salesScore += 1;
   }
 
   final best = [
