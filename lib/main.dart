@@ -65,6 +65,10 @@ class _MainShellState extends State<MainShell> {
         mainAxisSize: MainAxisSize.min,
         children: [
           const AdBanner(),
+          Container(
+            height: 0.6,
+            color: const Color(0xFFE5E5EA),
+          ),
           BottomNavigationBar(
             currentIndex: _index,
             onTap: (i) => setState(() => _index = i),
