@@ -1,6 +1,9 @@
+import 'dart:async';
 import 'dart:ui';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:google_mobile_ads/google_mobile_ads.dart' show MobileAds;
 import 'package:intl/date_symbol_data_local.dart';
 import 'package:provider/provider.dart';
 import 'app_state.dart';
@@ -17,6 +20,10 @@ void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await initializeDateFormatting('ko');
   await NotificationService.instance.init();
+  // AdMob 초기화 (Android 전용 — 웹 미리보기는 플레이스홀더 사용)
+  if (!kIsWeb) {
+    unawaited(MobileAds.instance.initialize());
+  }
   final appState = AppState();
   await appState.init();
   runApp(

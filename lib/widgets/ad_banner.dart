@@ -1,13 +1,73 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:google_mobile_ads/google_mobile_ads.dart';
 
-/// AdMob 배너 자리 (전 화면 하단 공통)
-/// 웹 미리보기에서는 은은한 플레이스홀더로 표시,
-/// Android 빌드 시 google_mobile_ads 배너로 교체됩니다.
-class AdBanner extends StatelessWidget {
+import '../ad_config.dart';
+
+/// AdMob 배너 (전 화면 하단 공통)
+/// - Android: google_mobile_ads 실제 배너 표시
+/// - 웹 미리보기: 은은한 플레이스홀더 표시
+class AdBanner extends StatefulWidget {
   const AdBanner({super.key});
 
   @override
+  State<AdBanner> createState() => _AdBannerState();
+}
+
+class _AdBannerState extends State<AdBanner> {
+  BannerAd? _bannerAd;
+  bool _loaded = false;
+  bool _failed = false;
+
+  @override
+  void initState() {
+    super.initState();
+    if (!kIsWeb) _loadAd();
+  }
+
+  void _loadAd() {
+    final ad = BannerAd(
+      adUnitId: AdConfig.bannerAdUnitId,
+      size: AdSize.banner,
+      request: const AdRequest(),
+      listener: BannerAdListener(
+        onAdLoaded: (ad) {
+          if (mounted) setState(() => _loaded = true);
+        },
+        onAdFailedToLoad: (ad, error) {
+          ad.dispose();
+          if (mounted) setState(() => _failed = true);
+        },
+      ),
+    );
+    _bannerAd = ad;
+    ad.load();
+  }
+
+  @override
+  void dispose() {
+    _bannerAd?.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
+    // Android에서 광고 로드 성공 → 실제 배너 표시
+    if (!kIsWeb && _loaded && _bannerAd != null) {
+      return Container(
+        height: 54,
+        width: double.infinity,
+        color: Colors.transparent,
+        alignment: Alignment.center,
+        child: SizedBox(
+          width: _bannerAd!.size.width.toDouble(),
+          height: _bannerAd!.size.height.toDouble(),
+          child: AdWidget(ad: _bannerAd!),
+        ),
+      );
+    }
+
+    // 웹 미리보기 / 로딩 중 / 로드 실패 → 플레이스홀더
     return Container(
       height: 54,
       width: double.infinity,
@@ -31,8 +91,8 @@ class AdBanner extends StatelessWidget {
                     letterSpacing: 0.5)),
           ),
           const SizedBox(width: 8),
-          const Text('광고 영역',
-              style: TextStyle(
+          Text(_failed ? '광고 준비 중' : '광고 영역',
+              style: const TextStyle(
                   fontSize: 13.5,
                   fontWeight: FontWeight.w500,
                   color: Color(0xFFAEAEB2))),
