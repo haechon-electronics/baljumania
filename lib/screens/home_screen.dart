@@ -25,11 +25,11 @@ class HomeScreen extends StatelessWidget {
       backgroundColor: AppColors.background,
       body: CustomScrollView(
         slivers: [
-          // iOS 대형 타이틀 헤더 (화이트)
+          // iOS 대형 타이틀 헤더
           SliverToBoxAdapter(
             child: Container(
               color: AppColors.background,
-              padding: const EdgeInsets.fromLTRB(20, 18, 16, 6),
+              padding: const EdgeInsets.fromLTRB(20, 20, 20, 14),
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
@@ -38,49 +38,53 @@ class HomeScreen extends StatelessWidget {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(today,
-                            style: const TextStyle(
-                                fontSize: 15,
+                            style: TextStyle(
+                                fontSize: 14,
                                 fontWeight: FontWeight.w600,
-                                color: AppColors.textGrey)),
-                        const SizedBox(height: 2),
+                                letterSpacing: -0.2,
+                                color: AppColors.textGrey
+                                    .withValues(alpha: 0.9))),
+                        const SizedBox(height: 3),
                         Text(
                           app.storeName,
                           style: const TextStyle(
-                              fontSize: 30,
+                              fontSize: 31,
                               fontWeight: FontWeight.w700,
-                              letterSpacing: -0.6,
+                              letterSpacing: -0.8,
+                              height: 1.1,
                               color: AppColors.textDark),
                         ),
                       ],
                     ),
                   ),
-                  Material(
-                    color: AppColors.primary,
-                    borderRadius: BorderRadius.circular(22),
-                    child: InkWell(
-                      borderRadius: BorderRadius.circular(22),
-                      onTap: () => Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                            builder: (_) => const SmartScanScreen()),
-                      ),
-                      child: const Padding(
-                        padding: EdgeInsets.symmetric(
-                            horizontal: 16, vertical: 11),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(Icons.photo_camera_rounded,
-                                color: Colors.white, size: 21),
-                            SizedBox(width: 6),
-                            Text('촬영',
-                                style: TextStyle(
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.w700,
-                                    color: Colors.white)),
-                          ],
+                  // 촬영 버튼: 그라데이션 원형 (iOS 카메라 앱 느낌)
+                  GestureDetector(
+                    onTap: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                          builder: (_) => const SmartScanScreen()),
+                    ),
+                    child: Container(
+                      width: 52,
+                      height: 52,
+                      decoration: BoxDecoration(
+                        gradient: const LinearGradient(
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                          colors: [Color(0xFF00A86B), Color(0xFF00875A)],
                         ),
+                        borderRadius: BorderRadius.circular(17),
+                        boxShadow: [
+                          BoxShadow(
+                            color: const Color(0xFF00875A)
+                                .withValues(alpha: 0.35),
+                            blurRadius: 14,
+                            offset: const Offset(0, 5),
+                          ),
+                        ],
                       ),
+                      child: const Icon(Icons.photo_camera_rounded,
+                          color: Colors.white, size: 26),
                     ),
                   ),
                 ],
@@ -88,33 +92,76 @@ class HomeScreen extends StatelessWidget {
             ),
           ),
 
-          // 요약 카드 3개
+          // 히어로 카드: 그라데이션 통합 현황 (토스/애플월렛 감성)
           SliverToBoxAdapter(
             child: Padding(
-              padding: const EdgeInsets.fromLTRB(16, 16, 16, 4),
-              child: Row(
-                children: [
-                  _SummaryCard(
-                    icon: Icons.warning_amber_rounded,
-                    color: AppColors.danger,
-                    value: '${overdue.length}',
-                    label: '미입고',
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 4),
+              child: Container(
+                padding: const EdgeInsets.fromLTRB(22, 20, 22, 20),
+                decoration: BoxDecoration(
+                  gradient: const LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: [
+                      Color(0xFF0E9F6E),
+                      Color(0xFF057A55),
+                      Color(0xFF046C4E),
+                    ],
                   ),
-                  const SizedBox(width: 10),
-                  _SummaryCard(
-                    icon: Icons.local_shipping_rounded,
-                    color: AppColors.accent,
-                    value: '${pending.length}',
-                    label: '입고 대기',
-                  ),
-                  const SizedBox(width: 10),
-                  _SummaryCard(
-                    icon: Icons.inventory_rounded,
-                    color: AppColors.primaryLight,
-                    value: '${lowStock.length}',
-                    label: '재고 부족',
-                  ),
-                ],
+                  borderRadius: BorderRadius.circular(24),
+                  boxShadow: [
+                    BoxShadow(
+                      color: const Color(0xFF057A55)
+                          .withValues(alpha: 0.30),
+                      blurRadius: 20,
+                      offset: const Offset(0, 8),
+                    ),
+                  ],
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 9, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: Colors.white.withValues(alpha: 0.18),
+                            borderRadius: BorderRadius.circular(20),
+                          ),
+                          child: const Text('오늘의 가게 현황',
+                              style: TextStyle(
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w600,
+                                  color: Colors.white)),
+                        ),
+                        const Spacer(),
+                        Icon(Icons.storefront_rounded,
+                            color: Colors.white.withValues(alpha: 0.5),
+                            size: 22),
+                      ],
+                    ),
+                    const SizedBox(height: 18),
+                    Row(
+                      children: [
+                        _HeroStat(
+                            value: '${overdue.length}',
+                            label: '미입고',
+                            warn: overdue.isNotEmpty),
+                        _heroDivider(),
+                        _HeroStat(
+                            value: '${pending.length}',
+                            label: '입고 대기'),
+                        _heroDivider(),
+                        _HeroStat(
+                            value: '${lowStock.length}',
+                            label: '재고 부족',
+                            warn: lowStock.isNotEmpty),
+                      ],
+                    ),
+                  ],
+                ),
               ),
             ),
           ),
@@ -127,11 +174,8 @@ class HomeScreen extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const _SectionTitle(
-                        icon: Icons.notification_important_rounded,
-                        color: AppColors.danger,
-                        title: '미입고 알림'),
-                    const SizedBox(height: 8),
+                    const _SectionTitle(title: '미입고 알림'),
+                    const SizedBox(height: 10),
                     ...overdue.map((o) => _OverdueCard(order: o)),
                   ],
                 ),
@@ -145,11 +189,8 @@ class HomeScreen extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const _SectionTitle(
-                      icon: Icons.auto_awesome_rounded,
-                      color: AppColors.accent,
-                      title: 'AI 발주 추천'),
-                  const SizedBox(height: 8),
+                  const _SectionTitle(title: 'AI 발주 추천'),
+                  const SizedBox(height: 10),
                   if (recs.isEmpty)
                     Card(
                       margin: EdgeInsets.zero,
@@ -181,23 +222,24 @@ class HomeScreen extends StatelessWidget {
             ),
           ),
 
-          // 빠른 메뉴
+          // 빠른 실행: iOS 위젯형 그라데이션 버튼
           SliverToBoxAdapter(
             child: Padding(
-              padding: const EdgeInsets.fromLTRB(16, 24, 16, 24),
+              padding: const EdgeInsets.fromLTRB(16, 24, 16, 28),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const _SectionTitle(
-                      icon: Icons.grid_view_rounded,
-                      color: AppColors.primary,
-                      title: '빠른 실행'),
-                  const SizedBox(height: 10),
+                  const _SectionTitle(title: '빠른 실행'),
+                  const SizedBox(height: 12),
                   Row(
                     children: [
                       _QuickButton(
                         icon: Icons.add_shopping_cart_rounded,
                         label: '발주하기',
+                        gradient: const [
+                          Color(0xFF0E9F6E),
+                          Color(0xFF046C4E)
+                        ],
                         onTap: () => Navigator.push(
                           context,
                           MaterialPageRoute(
@@ -208,6 +250,10 @@ class HomeScreen extends StatelessWidget {
                       _QuickButton(
                         icon: Icons.fact_check_rounded,
                         label: '입고 확인',
+                        gradient: const [
+                          Color(0xFF3B82F6),
+                          Color(0xFF1D4ED8)
+                        ],
                         onTap: () {
                           if (pending.isNotEmpty) {
                             Navigator.push(
@@ -237,76 +283,78 @@ class HomeScreen extends StatelessWidget {
   }
 }
 
-class _SummaryCard extends StatelessWidget {
-  final IconData icon;
-  final Color color;
+/// 히어로 카드 안 통계 항목
+class _HeroStat extends StatelessWidget {
   final String value;
   final String label;
+  final bool warn;
 
-  const _SummaryCard(
-      {required this.icon,
-      required this.color,
-      required this.value,
-      required this.label});
+  const _HeroStat(
+      {required this.value, required this.label, this.warn = false});
 
   @override
   Widget build(BuildContext context) {
     return Expanded(
-      child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 16),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(18),
-        ),
-        child: Column(
-          children: [
-            Container(
-              width: 42,
-              height: 42,
-              decoration: BoxDecoration(
-                color: color.withValues(alpha: 0.12),
-                shape: BoxShape.circle,
-              ),
-              child: Icon(icon, color: color, size: 24),
-            ),
-            const SizedBox(height: 8),
-            Text(value,
-                style: TextStyle(
-                    fontSize: 25,
-                    fontWeight: FontWeight.w700,
-                    letterSpacing: -0.5,
-                    color: color)),
-            const SizedBox(height: 2),
-            Text(label,
-                style: const TextStyle(
-                    fontSize: 13.5,
-                    fontWeight: FontWeight.w600,
-                    color: AppColors.textGrey)),
-          ],
-        ),
+      child: Column(
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              Text(value,
+                  style: const TextStyle(
+                      fontSize: 30,
+                      fontWeight: FontWeight.w700,
+                      letterSpacing: -0.8,
+                      height: 1.0,
+                      color: Colors.white)),
+              if (warn) ...[
+                const SizedBox(width: 4),
+                Container(
+                  width: 8,
+                  height: 8,
+                  decoration: const BoxDecoration(
+                    color: Color(0xFFFFD60A),
+                    shape: BoxShape.circle,
+                  ),
+                ),
+              ],
+            ],
+          ),
+          const SizedBox(height: 5),
+          Text(label,
+              style: TextStyle(
+                  fontSize: 13.5,
+                  fontWeight: FontWeight.w600,
+                  color: Colors.white.withValues(alpha: 0.75))),
+        ],
       ),
     );
   }
 }
 
+Widget _heroDivider() => Container(
+      width: 0.8,
+      height: 38,
+      color: Colors.white.withValues(alpha: 0.20),
+    );
+
+/// iOS식 섹션 타이틀 (아이콘 없이 깔끔하게)
 class _SectionTitle extends StatelessWidget {
-  final IconData icon;
-  final Color color;
   final String title;
 
-  const _SectionTitle(
-      {required this.icon, required this.color, required this.title});
+  const _SectionTitle({required this.title});
 
   @override
   Widget build(BuildContext context) {
-    return Row(
-      children: [
-        Icon(icon, color: color, size: 24),
-        const SizedBox(width: 8),
-        Text(title,
-            style: const TextStyle(
-                fontSize: 20, fontWeight: FontWeight.bold)),
-      ],
+    return Padding(
+      padding: const EdgeInsets.only(left: 6),
+      child: Text(title,
+          style: const TextStyle(
+              fontSize: 21,
+              fontWeight: FontWeight.w700,
+              letterSpacing: -0.5,
+              color: AppColors.textDark)),
     );
   }
 }
@@ -440,32 +488,59 @@ class _RecommendCard extends StatelessWidget {
   }
 }
 
+/// iOS 위젯형 빠른실행 버튼: 흰 카드 + 그라데이션 스쿼클 아이콘
 class _QuickButton extends StatelessWidget {
   final IconData icon;
   final String label;
+  final List<Color> gradient;
   final VoidCallback onTap;
 
-  const _QuickButton(
-      {required this.icon, required this.label, required this.onTap});
+  const _QuickButton({
+    required this.icon,
+    required this.label,
+    required this.gradient,
+    required this.onTap,
+  });
 
   @override
   Widget build(BuildContext context) {
     return Expanded(
       child: Material(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(20),
         child: InkWell(
-          borderRadius: BorderRadius.circular(16),
+          borderRadius: BorderRadius.circular(20),
           onTap: onTap,
           child: Container(
-            padding: const EdgeInsets.symmetric(vertical: 20),
+            padding: const EdgeInsets.symmetric(vertical: 18),
             child: Column(
               children: [
-                Icon(icon, color: AppColors.primary, size: 34),
-                const SizedBox(height: 8),
+                Container(
+                  width: 52,
+                  height: 52,
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                      colors: gradient,
+                    ),
+                    borderRadius: BorderRadius.circular(16),
+                    boxShadow: [
+                      BoxShadow(
+                        color: gradient.last.withValues(alpha: 0.30),
+                        blurRadius: 10,
+                        offset: const Offset(0, 4),
+                      ),
+                    ],
+                  ),
+                  child: Icon(icon, color: Colors.white, size: 27),
+                ),
+                const SizedBox(height: 10),
                 Text(label,
                     style: const TextStyle(
-                        fontSize: 17, fontWeight: FontWeight.bold)),
+                        fontSize: 16.5,
+                        fontWeight: FontWeight.w600,
+                        letterSpacing: -0.3)),
               ],
             ),
           ),

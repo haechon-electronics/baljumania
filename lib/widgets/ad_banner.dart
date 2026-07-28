@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
 /// AdMob 배너 자리 (전 화면 하단 공통)
-/// 웹 미리보기에서는 플레이스홀더로 표시,
+/// 웹 미리보기에서는 은은한 플레이스홀더로 표시,
 /// Android 빌드 시 google_mobile_ads 배너로 교체됩니다.
 class AdBanner extends StatelessWidget {
   const AdBanner({super.key});
@@ -9,32 +9,33 @@ class AdBanner extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      height: 56,
+      height: 54,
       width: double.infinity,
-      decoration: BoxDecoration(
-        color: const Color(0xFFF0F0F0),
-        border: Border(
-          top: BorderSide(color: Colors.grey.shade300),
-        ),
-      ),
+      color: Colors.transparent,
+      alignment: Alignment.center,
       child: Row(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+            padding:
+                const EdgeInsets.symmetric(horizontal: 7, vertical: 2.5),
             decoration: BoxDecoration(
-              color: Colors.grey.shade400,
-              borderRadius: BorderRadius.circular(4),
+              color: const Color(0xFFE5E5EA),
+              borderRadius: BorderRadius.circular(6),
             ),
             child: const Text('AD',
                 style: TextStyle(
-                    fontSize: 11,
-                    color: Colors.white,
-                    fontWeight: FontWeight.bold)),
+                    fontSize: 10.5,
+                    color: Color(0xFF8E8E93),
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: 0.5)),
           ),
           const SizedBox(width: 8),
-          Text('광고 배너 영역 (AdMob)',
-              style: TextStyle(fontSize: 14, color: Colors.grey.shade600)),
+          const Text('광고 영역',
+              style: TextStyle(
+                  fontSize: 13.5,
+                  fontWeight: FontWeight.w500,
+                  color: Color(0xFFAEAEB2))),
         ],
       ),
     );

@@ -1,3 +1,5 @@
+import 'dart:ui';
+
 import 'package:flutter/material.dart';
 import 'package:intl/date_symbol_data_local.dart';
 import 'package:provider/provider.dart';
@@ -61,34 +63,48 @@ class _MainShellState extends State<MainShell> {
   Widget build(BuildContext context) {
     return Scaffold(
       body: SafeArea(child: _screens[_index]),
-      bottomNavigationBar: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          const AdBanner(),
-          Container(
-            height: 0.6,
-            color: const Color(0xFFE5E5EA),
+      // iOS식 반투명 블러 탭바
+      bottomNavigationBar: ClipRect(
+        child: BackdropFilter(
+          filter: ImageFilter.blur(sigmaX: 18, sigmaY: 18),
+          child: Container(
+            decoration: BoxDecoration(
+              color: Colors.white.withValues(alpha: 0.82),
+              border: const Border(
+                top: BorderSide(color: Color(0x33C6C6C8), width: 0.5),
+              ),
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const AdBanner(),
+                BottomNavigationBar(
+                  currentIndex: _index,
+                  onTap: (i) => setState(() => _index = i),
+                  backgroundColor: Colors.transparent,
+                  elevation: 0,
+                  items: const [
+                    BottomNavigationBarItem(
+                        icon: Icon(Icons.home_rounded, size: 27),
+                        label: '홈'),
+                    BottomNavigationBarItem(
+                        icon: Icon(Icons.receipt_long_rounded, size: 27),
+                        label: '발주'),
+                    BottomNavigationBarItem(
+                        icon: Icon(Icons.inventory_2_rounded, size: 27),
+                        label: '재고'),
+                    BottomNavigationBarItem(
+                        icon: Icon(Icons.store_rounded, size: 27),
+                        label: '거래처'),
+                    BottomNavigationBarItem(
+                        icon: Icon(Icons.more_horiz_rounded, size: 27),
+                        label: '더보기'),
+                  ],
+                ),
+              ],
+            ),
           ),
-          BottomNavigationBar(
-            currentIndex: _index,
-            onTap: (i) => setState(() => _index = i),
-            items: const [
-              BottomNavigationBarItem(
-                  icon: Icon(Icons.home_rounded, size: 28), label: '홈'),
-              BottomNavigationBarItem(
-                  icon: Icon(Icons.receipt_long_rounded, size: 28),
-                  label: '발주'),
-              BottomNavigationBarItem(
-                  icon: Icon(Icons.inventory_2_rounded, size: 28),
-                  label: '재고'),
-              BottomNavigationBarItem(
-                  icon: Icon(Icons.store_rounded, size: 28), label: '거래처'),
-              BottomNavigationBarItem(
-                  icon: Icon(Icons.more_horiz_rounded, size: 28),
-                  label: '더보기'),
-            ],
-          ),
-        ],
+        ),
       ),
     );
   }
