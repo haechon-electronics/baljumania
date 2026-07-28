@@ -172,10 +172,14 @@ class _EmployeeCard extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(employee.name,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
                           style: const TextStyle(
                               fontSize: 18, fontWeight: FontWeight.bold)),
                       Text(
                           '$_typeLabel · ${employee.empType == 'insured' ? '월급 ${formatWon(employee.monthlyWage)}' : '시급 ${formatWon(employee.hourlyWage)}'}',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
                           style: const TextStyle(
                               fontSize: 14, color: AppColors.textGrey)),
                     ],
@@ -780,10 +784,14 @@ class _WorkMessageScreenState extends State<WorkMessageScreen> {
                           color: AppColors.primary),
                       title: Text(
                           '${formatDateKr(p.date.toIso8601String().substring(0, 10))}  ${_hourLabel(p.startHour)} ~ ${_hourLabel(p.endHour)}',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
                           style: const TextStyle(
                               fontSize: 17,
                               fontWeight: FontWeight.w600)),
                       subtitle: Text('"${p.raw}"',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
                           style: const TextStyle(
                               fontSize: 13, color: AppColors.textGrey)),
                       trailing: IconButton(

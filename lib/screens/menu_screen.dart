@@ -82,6 +82,8 @@ class MenuScreen extends StatelessWidget {
                     contentPadding: const EdgeInsets.symmetric(
                         horizontal: 16, vertical: 8),
                     title: Text(menu.name,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                         style: const TextStyle(
                             fontSize: 18, fontWeight: FontWeight.bold)),
                     subtitle: Column(

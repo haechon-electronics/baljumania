@@ -59,6 +59,8 @@ class SuppliersScreen extends StatelessWidget {
                       ),
                     ),
                     title: Text(s.name,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                         style: const TextStyle(
                             fontSize: 18, fontWeight: FontWeight.bold)),
                     subtitle: Column(
@@ -69,6 +71,8 @@ class SuppliersScreen extends StatelessWidget {
                               style: const TextStyle(fontSize: 15)),
                         Text(
                             '$typeLabel${s.memo.isNotEmpty ? ' · ${s.memo}' : ''}',
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
                             style: const TextStyle(
                                 fontSize: 14, color: AppColors.textGrey)),
                       ],

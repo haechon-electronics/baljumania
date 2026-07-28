@@ -86,8 +86,10 @@ class _ConsultScreenState extends State<ConsultScreen> {
             padding:
                 const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
             child: const Text(
-              '💡 일반 정보 안내용이에요. 정확한 세무·법률 판단은 전문가 상담을 받아주세요. (전문가 연결 기능 준비 중!)',
+              '💡 일반 정보 안내용이에요. 정확한 세무·법률 판단은 전문가 상담을 받아주세요.',
               style: TextStyle(fontSize: 13, color: AppColors.primary),
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
             ),
           ),
           // 채팅 목록
@@ -99,21 +101,29 @@ class _ConsultScreenState extends State<ConsultScreen> {
               itemBuilder: (context, i) => _bubble(_messages[i]),
             ),
           ),
-          // 추천 질문
-          SizedBox(
-            height: 46,
+          // 추천 질문 (높이 확보 + 칩 잘림 방지)
+          Container(
+            height: 58,
+            alignment: Alignment.center,
             child: ListView(
               scrollDirection: Axis.horizontal,
-              padding: const EdgeInsets.symmetric(horizontal: 10),
+              padding: const EdgeInsets.symmetric(
+                  horizontal: 12, vertical: 8),
               children: ConsultEngine.quickQuestions
                   .map((q) => Padding(
                         padding: const EdgeInsets.only(right: 8),
                         child: ActionChip(
                           label: Text(q,
-                              style: const TextStyle(fontSize: 14)),
-                          backgroundColor: Colors.white,
-                          side: const BorderSide(
-                              color: AppColors.primaryLight),
+                              style: const TextStyle(
+                                  fontSize: 14.5,
+                                  fontWeight: FontWeight.w600,
+                                  color: AppColors.primary)),
+                          backgroundColor: AppColors.primarySoft,
+                          materialTapTargetSize:
+                              MaterialTapTargetSize.shrinkWrap,
+                          visualDensity: VisualDensity.compact,
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 12, vertical: 8),
                           onPressed: () => _send(q),
                         ),
                       ))

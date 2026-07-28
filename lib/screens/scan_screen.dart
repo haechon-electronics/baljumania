@@ -340,6 +340,8 @@ class _ReceiptScanScreenState extends State<ReceiptScanScreen>
                         Expanded(
                           child: Text(
                             r.store.isEmpty ? '(매장명 미인식)' : r.store,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
                             style: const TextStyle(
                                 fontSize: 18,
                                 fontWeight: FontWeight.bold),
@@ -356,6 +358,8 @@ class _ReceiptScanScreenState extends State<ReceiptScanScreen>
                             Expanded(
                               child: Text(
                                 '${e.value.name}  ${formatQty(e.value.qty)}${e.value.unit}',
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
                                 style: const TextStyle(fontSize: 16),
                               ),
                             ),
@@ -579,6 +583,8 @@ class _SalesReportScanScreenState extends State<SalesReportScanScreen>
                           Expanded(
                             child: Text(
                               '${e.value.name} × ${formatQty(e.value.qty)}',
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
                               style: const TextStyle(fontSize: 16),
                             ),
                           ),
@@ -859,6 +865,8 @@ class _MenuBoardScanScreenState extends State<MenuBoardScanScreen>
                           children: [
                             Expanded(
                                 child: Text(e.value.name,
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
                                     style:
                                         const TextStyle(fontSize: 17))),
                             Text(formatWon(e.value.price),

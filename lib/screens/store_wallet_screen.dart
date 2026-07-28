@@ -157,6 +157,8 @@ class _StoreWalletScreenState extends State<StoreWalletScreen> {
           style: const TextStyle(fontSize: 14, color: Colors.grey)),
       subtitle: Text(
         has ? value : '미입력',
+        maxLines: 2,
+        overflow: TextOverflow.ellipsis,
         style: TextStyle(
           fontSize: 17,
           fontWeight: FontWeight.w600,

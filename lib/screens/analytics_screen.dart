@@ -238,6 +238,8 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
                                   : AppColors.textGrey)),
                     ),
                     title: Text(menu.name,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                         style: const TextStyle(
                             fontSize: 17, fontWeight: FontWeight.w600)),
                     subtitle: cost > 0
@@ -318,6 +320,8 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
                       size: 26,
                     ),
                     title: Text(item.name,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                         style: const TextStyle(
                             fontSize: 17, fontWeight: FontWeight.w600)),
                     subtitle: Text(

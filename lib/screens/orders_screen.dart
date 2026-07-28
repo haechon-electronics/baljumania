@@ -149,6 +149,8 @@ class _OrderCard extends StatelessWidget {
                 children: [
                   Expanded(
                     child: Text(order.supplierName,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                         style: const TextStyle(
                             fontSize: 19, fontWeight: FontWeight.bold)),
                   ),

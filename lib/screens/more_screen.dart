@@ -448,11 +448,15 @@ class _IosTile extends StatelessWidget {
             child: Icon(icon, color: Colors.white, size: 23),
           ),
           title: Text(title,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
               style: const TextStyle(
                   fontSize: 17,
                   fontWeight: FontWeight.w600,
                   color: AppColors.textDark)),
           subtitle: Text(subtitle,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
               style: const TextStyle(
                   fontSize: 13.5, color: AppColors.textGrey)),
           trailing: const Icon(Icons.chevron_right,
@@ -524,6 +528,8 @@ class _ComingSoonTile extends StatelessWidget {
             ],
           ),
           subtitle: Text(subtitle,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
               style: const TextStyle(
                   fontSize: 13.5, color: Color(0xFFB0B0B6))),
           onTap: () {

@@ -47,6 +47,8 @@ class HomeScreen extends StatelessWidget {
                         const SizedBox(height: 3),
                         Text(
                           app.storeName,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
                           style: const TextStyle(
                               fontSize: 31,
                               fontWeight: FontWeight.w700,
@@ -390,12 +392,16 @@ class _OverdueCard extends StatelessWidget {
                   children: [
                     Text(
                       '${order.supplierName} · ${formatDateKr(order.orderDate)} 발주',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                       style: const TextStyle(
                           fontSize: 17, fontWeight: FontWeight.bold),
                     ),
                     const SizedBox(height: 4),
                     Text(
                       '${missing.map((l) => l.itemName).join(', ')} 미입고 (예정일 ${formatDateKr(order.expectedDate)} 지남)',
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
                       style: const TextStyle(
                           fontSize: 15, color: AppColors.danger),
                     ),
@@ -451,10 +457,14 @@ class _RecommendCard extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(item.name,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                       style: const TextStyle(
                           fontSize: 18, fontWeight: FontWeight.bold)),
                   const SizedBox(height: 2),
                   Text(reason,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
                       style: TextStyle(
                           fontSize: 15,
                           color: urgent
@@ -462,6 +472,8 @@ class _RecommendCard extends StatelessWidget {
                               : AppColors.textGrey)),
                   if (supplier != null)
                     Text('거래처: ${supplier.name}',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                         style: const TextStyle(
                             fontSize: 14, color: AppColors.textGrey)),
                 ],
