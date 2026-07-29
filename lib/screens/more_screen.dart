@@ -215,7 +215,7 @@ class MoreScreen extends StatelessWidget {
               style: const TextStyle(fontSize: 15),
               decoration: const InputDecoration(
                 labelText: 'Gemini API 키',
-                hintText: 'AIza로 시작하는 키 붙여넣기',
+                hintText: 'AIza 또는 AQ.로 시작하는 키 붙여넣기',
               ),
             ),
             const SizedBox(height: 12),

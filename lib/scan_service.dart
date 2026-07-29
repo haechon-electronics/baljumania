@@ -60,8 +60,9 @@ class ScanService {
       final b64 = base64Encode(bytes);
 
       final prompt = _promptFor(task);
+      // gemini-flash-lite-latest: 항상 최신 경량 모델을 가리키는 별칭 (구버전 은퇴 영향 없음)
       final url = Uri.parse(
-          'https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${geminiApiKey.trim()}');
+          'https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-lite-latest:generateContent?key=${geminiApiKey.trim()}');
 
       final body = jsonEncode({
         'contents': [
