@@ -60,9 +60,14 @@ class _SmartScanScreenState extends State<SmartScanScreen> {
         if (ocr.trim().isEmpty) {
           setState(() {
             _scanning = false;
-            _lastFail = '글자를 인식하지 못했어요.\n'
-                '문서가 화면에 꽉 차게, 밝은 곳에서 다시 찍어주세요.\n'
-                '(웹 미리보기에서는 AI 정밀인식 키가 있어야 동작해요)';
+            _lastFail = svc.aiEnabled
+                ? 'AI 서버 응답이 없고 기본인식도 글자를 찾지 못했어요.\n'
+                    '인터넷 연결을 확인하고, 문서가 화면에 꽉 차게 밝은 곳에서 다시 찍어주세요.'
+                : '글자를 인식하지 못했어요.\n'
+                    '· 문서가 화면에 꽉 차게, 초점을 맞춰서 찍어주세요\n'
+                    '· 그림자 없이 밝은 곳에서 찍으면 더 잘 읽혀요\n'
+                    '💡 더보기 → AI 정밀인식 설정에서 키를 넣으면\n'
+                    '인식률이 크게 올라갑니다!';
           });
           return;
         }
@@ -404,8 +409,22 @@ class _SmartScanScreenState extends State<SmartScanScreen> {
               color: const Color(0xFFFFF3E0),
               child: Padding(
                 padding: const EdgeInsets.all(14),
-                child: Text(_lastFail!,
-                    style: const TextStyle(fontSize: 15, height: 1.5)),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Text(_lastFail!,
+                        style:
+                            const TextStyle(fontSize: 15, height: 1.5)),
+                    if (_lastImage != null) ...[
+                      const SizedBox(height: 10),
+                      OutlinedButton.icon(
+                        icon: const Icon(Icons.touch_app, size: 20),
+                        label: const Text('방금 사진으로 종류 직접 선택'),
+                        onPressed: _chooseTypeAndGo,
+                      ),
+                    ],
+                  ],
+                ),
               ),
             ),
           ],

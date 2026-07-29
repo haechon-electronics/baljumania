@@ -24,8 +24,8 @@ class ScanService {
     try {
       return await _picker.pickImage(
         source: fromCamera ? ImageSource.camera : ImageSource.gallery,
-        maxWidth: 1920,
-        imageQuality: 88,
+        maxWidth: 2560,
+        imageQuality: 92,
       );
     } catch (_) {
       return null;
@@ -33,17 +33,23 @@ class ScanService {
   }
 
   /// ML Kit 무료 OCR (한국어) — 폰 전용, 웹에서는 빈 문자열
+  /// 한글 모델이 실패하거나 못 읽으면 라틴(숫자/영문) 모델로 자동 재시도
   Future<String> recognizeText(XFile image) async {
     if (kIsWeb) return '';
+    final korean = await _runOcr(image, TextRecognitionScript.korean);
+    if (korean.trim().isNotEmpty) return korean;
+    return _runOcr(image, TextRecognitionScript.latin);
+  }
+
+  Future<String> _runOcr(XFile image, TextRecognitionScript script) async {
     TextRecognizer? recognizer;
     try {
-      recognizer =
-          TextRecognizer(script: TextRecognitionScript.korean);
+      recognizer = TextRecognizer(script: script);
       final input = InputImage.fromFilePath(image.path);
       final result = await recognizer.processImage(input);
       return result.text;
     } catch (e) {
-      if (kDebugMode) debugPrint('OCR 실패: $e');
+      if (kDebugMode) debugPrint('OCR($script) 실패: $e');
       return '';
     } finally {
       await recognizer?.close();
