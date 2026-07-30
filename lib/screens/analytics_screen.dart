@@ -169,11 +169,15 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
                         children: [
                           Row(
                             children: [
-                              Text(e.key,
-                                  style: const TextStyle(
-                                      fontSize: 16,
-                                      fontWeight: FontWeight.w600)),
-                              const Spacer(),
+                              Expanded(
+                                child: Text(e.key,
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: const TextStyle(
+                                        fontSize: 16,
+                                        fontWeight: FontWeight.w600)),
+                              ),
+                              const SizedBox(width: 8),
                               Text(
                                   '${formatWon(e.value)} (${(pct * 100).toStringAsFixed(0)}%)',
                                   style: const TextStyle(fontSize: 15)),

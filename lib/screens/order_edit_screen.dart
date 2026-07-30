@@ -240,12 +240,18 @@ class _OrderEditScreenState extends State<OrderEditScreen> {
                 const Text('입고 예정 금액',
                     style: TextStyle(
                         fontSize: 18, fontWeight: FontWeight.bold)),
-                const Spacer(),
-                Text(formatWon(_totalAmount),
-                    style: const TextStyle(
-                        fontSize: 24,
-                        fontWeight: FontWeight.bold,
-                        color: AppColors.primary)),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: FittedBox(
+                    fit: BoxFit.scaleDown,
+                    alignment: Alignment.centerRight,
+                    child: Text(formatWon(_totalAmount),
+                        style: const TextStyle(
+                            fontSize: 24,
+                            fontWeight: FontWeight.bold,
+                            color: AppColors.primary)),
+                  ),
+                ),
               ],
             ),
           ),

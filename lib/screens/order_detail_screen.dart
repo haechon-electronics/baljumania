@@ -136,12 +136,18 @@ class OrderDetailScreen extends StatelessWidget {
                       const Text('입고 예정 금액',
                           style: TextStyle(
                               fontSize: 17, fontWeight: FontWeight.bold)),
-                      const Spacer(),
-                      Text(formatWon(order.totalAmount),
-                          style: const TextStyle(
-                              fontSize: 22,
-                              fontWeight: FontWeight.bold,
-                              color: AppColors.primary)),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: FittedBox(
+                          fit: BoxFit.scaleDown,
+                          alignment: Alignment.centerRight,
+                          child: Text(formatWon(order.totalAmount),
+                              style: const TextStyle(
+                                  fontSize: 22,
+                                  fontWeight: FontWeight.bold,
+                                  color: AppColors.primary)),
+                        ),
+                      ),
                     ],
                   ),
                 ],

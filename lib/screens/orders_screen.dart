@@ -183,14 +183,16 @@ class _OrderCard extends StatelessWidget {
               const SizedBox(height: 8),
               Row(
                 children: [
-                  Text('발주 ${formatDateKr(order.orderDate)}',
+                  Expanded(
+                    child: Text(
+                      '발주 ${formatDateKr(order.orderDate)} · 입고예정 ${formatDateKr(order.expectedDate)}',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                       style: const TextStyle(
-                          fontSize: 14, color: AppColors.textGrey)),
-                  const SizedBox(width: 12),
-                  Text('입고예정 ${formatDateKr(order.expectedDate)}',
-                      style: const TextStyle(
-                          fontSize: 14, color: AppColors.textGrey)),
-                  const Spacer(),
+                          fontSize: 14, color: AppColors.textGrey),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
                   Text(formatWon(order.totalAmount),
                       style: const TextStyle(
                           fontSize: 17,
