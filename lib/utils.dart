@@ -40,6 +40,58 @@ String buildOrderMessage({
   return buf.toString();
 }
 
+/// 같은 거래처 여러 발주 통합 문자 생성 (품목 합산)
+String buildCombinedOrderMessage({
+  required String storeName,
+  required List<PurchaseOrder> orders,
+}) {
+  final buf = StringBuffer();
+  buf.writeln('사장님 안녕하세요, $storeName입니다.');
+  buf.writeln('발주 부탁드립니다.');
+  buf.writeln('');
+
+  // 같은 품목(이름+단위)은 수량 합산
+  final merged = <String, ({String name, String unit, double qty})>{};
+  for (final order in orders) {
+    for (final line in order.lines) {
+      final key = '${line.itemName}|${line.unit}';
+      final prev = merged[key];
+      merged[key] = (
+        name: line.itemName,
+        unit: line.unit,
+        qty: (prev?.qty ?? 0) + line.qty,
+      );
+    }
+  }
+  for (final m in merged.values) {
+    buf.writeln('- ${m.name} ${formatQty(m.qty)}${m.unit}');
+  }
+  buf.writeln('');
+
+  // 가장 빠른 입고 예정일 기준
+  DateTime? earliest;
+  for (final order in orders) {
+    final d = DateTime.tryParse(order.expectedDate);
+    if (d != null && (earliest == null || d.isBefore(earliest))) {
+      earliest = d;
+    }
+  }
+  if (earliest != null) {
+    buf.writeln('${DateFormat('M월 d일', 'ko').format(earliest)}까지 부탁드립니다.');
+  }
+
+  // 메모 합치기 (중복 제거)
+  final memos = orders
+      .map((o) => o.memo.trim())
+      .where((m) => m.isNotEmpty)
+      .toSet();
+  for (final memo in memos) {
+    buf.writeln(memo);
+  }
+  buf.write('감사합니다!');
+  return buf.toString();
+}
+
 /// 미입고 문의 문자 생성
 String buildInquiryMessage({
   required String storeName,

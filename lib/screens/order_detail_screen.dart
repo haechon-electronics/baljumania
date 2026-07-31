@@ -9,7 +9,7 @@ import '../theme.dart';
 import '../utils.dart';
 
 /// 발주 상세: 입고 체크 + 발주 문자 생성/복사/문자/공유
-class OrderDetailScreen extends StatelessWidget {
+class OrderDetailScreen extends StatefulWidget {
   final String orderId;
   final bool justCreated;
 
@@ -17,8 +17,17 @@ class OrderDetailScreen extends StatelessWidget {
       {super.key, required this.orderId, this.justCreated = false});
 
   @override
+  State<OrderDetailScreen> createState() => _OrderDetailScreenState();
+}
+
+class _OrderDetailScreenState extends State<OrderDetailScreen> {
+  bool _combined = false; // 같은 거래처 대기 발주 통합 문자 여부
+
+  @override
   Widget build(BuildContext context) {
     final app = context.watch<AppState>();
+    final orderId = widget.orderId;
+    final justCreated = widget.justCreated;
     PurchaseOrder? order;
     try {
       order = app.orders.firstWhere((o) => o.id == orderId);
@@ -33,8 +42,18 @@ class OrderDetailScreen extends StatelessWidget {
       );
     }
 
-    final message =
-        buildOrderMessage(storeName: app.storeName, order: order);
+    // 같은 거래처의 다른 '입고 대기' 발주들 (통합 문자 대상)
+    final samePendingOrders = app.orders
+        .where((o) =>
+            o.supplierId == order!.supplierId &&
+            o.status != 'done')
+        .toList();
+    final canCombine = samePendingOrders.length >= 2;
+
+    final message = (_combined && canCombine)
+        ? buildCombinedOrderMessage(
+            storeName: app.storeName, orders: samePendingOrders)
+        : buildOrderMessage(storeName: app.storeName, order: order);
     final supplier = app.supplierById(order.supplierId);
 
     return Scaffold(
@@ -241,6 +260,61 @@ class OrderDetailScreen extends StatelessWidget {
           const Text('발주 문자',
               style: TextStyle(fontSize: 19, fontWeight: FontWeight.bold)),
           const SizedBox(height: 8),
+
+          // 같은 거래처 대기 발주가 2건 이상이면 통합 문자 옵션 표시
+          if (canCombine) ...[
+            Container(
+              margin: const EdgeInsets.only(bottom: 10),
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: AppColors.primarySoft,
+                borderRadius: BorderRadius.circular(14),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      const Icon(Icons.merge_rounded,
+                          color: AppColors.primary, size: 22),
+                      const SizedBox(width: 6),
+                      Expanded(
+                        child: Text(
+                          '이 거래처에 대기 중인 발주가 ${samePendingOrders.length}건 있어요',
+                          style: const TextStyle(
+                              fontSize: 15,
+                              fontWeight: FontWeight.w600),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 10),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: _ToggleChip(
+                          label: '이 발주만',
+                          selected: !_combined,
+                          onTap: () =>
+                              setState(() => _combined = false),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: _ToggleChip(
+                          label:
+                              '${samePendingOrders.length}건 합쳐 한 통으로',
+                          selected: _combined,
+                          onTap: () =>
+                              setState(() => _combined = true),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ],
           Card(
             margin: EdgeInsets.zero,
             child: Padding(
@@ -332,6 +406,43 @@ class OrderDetailScreen extends StatelessWidget {
           ],
           const SizedBox(height: 30),
         ],
+      ),
+    );
+  }
+}
+
+class _ToggleChip extends StatelessWidget {
+  final String label;
+  final bool selected;
+  final VoidCallback onTap;
+
+  const _ToggleChip(
+      {required this.label, required this.selected, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(12),
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 6),
+        alignment: Alignment.center,
+        decoration: BoxDecoration(
+          color: selected ? AppColors.primary : Colors.white,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(
+              color: selected ? AppColors.primary : Colors.black26),
+        ),
+        child: Text(
+          label,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: TextStyle(
+            fontSize: 14,
+            fontWeight: FontWeight.bold,
+            color: selected ? Colors.white : AppColors.textDark,
+          ),
+        ),
       ),
     );
   }
