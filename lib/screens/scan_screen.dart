@@ -6,12 +6,14 @@ import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
 
 import '../app_state.dart';
+import '../models.dart';
 import '../models2.dart';
 import '../scan_parsers.dart';
 import '../scan_service.dart';
 import '../theme.dart';
 import '../utils.dart';
 import '../widgets/ad_banner.dart';
+import 'order_edit_screen.dart';
 
 /// 촬영 인식 허브: 4가지 스캔 기능 입구
 class ScanHubScreen extends StatelessWidget {
@@ -78,6 +80,13 @@ class ScanHubScreen extends StatelessWidget {
             title: '메뉴판',
             subtitle: '메뉴판 촬영 → 메뉴·가격 자동 등록',
             screen: const MenuBoardScanScreen(),
+          ),
+          _tile(
+            context,
+            icon: Icons.edit_note_rounded,
+            title: '구매 메모 → 발주 만들기',
+            subtitle: '손글씨 장보기 메모 촬영 → 발주 리스트 자동 생성',
+            screen: const BuyListScanScreen(),
           ),
           const SizedBox(height: 12),
           if (kIsWeb)
@@ -396,23 +405,31 @@ class _ReceiptScanScreenState extends State<ReceiptScanScreen>
             ),
             const SizedBox(height: 12),
             Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text('분류:', style: TextStyle(fontSize: 16)),
+                const Padding(
+                  padding: EdgeInsets.only(top: 12),
+                  child: Text('분류:', style: TextStyle(fontSize: 16)),
+                ),
                 const SizedBox(width: 8),
-                ...['식자재', '소모품'].map((c) => Padding(
-                      padding: const EdgeInsets.only(right: 8),
-                      child: ChoiceChip(
-                        label: Text(c),
-                        selected: _category == c,
-                        selectedColor: AppColors.primary,
-                        labelStyle: TextStyle(
-                            color: _category == c
-                                ? Colors.white
-                                : Colors.black87),
-                        onSelected: (_) =>
-                            setState(() => _category = c),
-                      ),
-                    )),
+                Expanded(
+                  child: Wrap(
+                    spacing: 8,
+                    children: kStockCategories
+                        .map((c) => ChoiceChip(
+                              label: Text(c),
+                              selected: _category == c,
+                              selectedColor: AppColors.primary,
+                              labelStyle: TextStyle(
+                                  color: _category == c
+                                      ? Colors.white
+                                      : Colors.black87),
+                              onSelected: (_) =>
+                                  setState(() => _category = c),
+                            ))
+                        .toList(),
+                  ),
+                ),
               ],
             ),
             SwitchListTile(
@@ -890,6 +907,201 @@ class _MenuBoardScanScreenState extends State<MenuBoardScanScreen>
                 ),
               ),
             ),
+        ],
+      ),
+      bottomNavigationBar: const SafeArea(child: AdBanner()),
+    );
+  }
+}
+
+/// ── 5. 구매 메모(장보기 리스트) 스캔 → 발주 리스트로 ──
+class BuyListScanScreen extends StatefulWidget {
+  final String? preloadedOcr;
+  final Map<String, dynamic>? preloadedGemini;
+  const BuyListScanScreen(
+      {super.key, this.preloadedOcr, this.preloadedGemini});
+  @override
+  State<BuyListScanScreen> createState() => _BuyListScanScreenState();
+}
+
+class _BuyListScanScreenState extends State<BuyListScanScreen>
+    with _ScanFlow {
+  List<ScannedBuyItem>? _items;
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.preloadedOcr != null || widget.preloadedGemini != null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _apply(widget.preloadedOcr ?? '', widget.preloadedGemini);
+      });
+    }
+  }
+
+  Future<void> _scan() async {
+    final res = await capture('buyList');
+    if (res == null) return;
+    final (_, ocr, gemini) = res;
+    _apply(ocr, gemini);
+  }
+
+  void _apply(String ocr, Map<String, dynamic>? gemini) {
+    List<ScannedBuyItem> items;
+    if (gemini != null) {
+      items = ((gemini['items'] as List?) ?? [])
+          .map((e) => ScannedBuyItem(
+                name: e['name'] as String? ?? '',
+                qty: (e['qty'] as num?)?.toDouble() ?? 1,
+                unit: e['unit'] as String? ?? '개',
+              ))
+          .where((i) => i.name.isNotEmpty)
+          .toList();
+    } else if (ocr.isNotEmpty) {
+      items = parseBuyListText(ocr);
+    } else {
+      toast('글자를 인식하지 못했어요. 다시 찍어주세요. (웹에서는 AI 키 필요)');
+      return;
+    }
+    if (items.isEmpty) {
+      toast('품목을 찾지 못했어요. 한 줄에 하나씩 적힌 메모가 잘 보이게 찍어주세요.');
+      return;
+    }
+    setState(() => _items = items);
+  }
+
+  /// 인식된 품목들 → 발주 품목(OrderLine)으로 변환해서 새 발주 화면으로
+  void _goToOrder() {
+    final items = _items;
+    if (items == null || items.isEmpty) return;
+    final app = context.read<AppState>();
+
+    final lines = <OrderLine>[];
+    String? supplierId;
+    for (final it in items) {
+      // 재고에 같은 이름 품목이 있으면 단가/단위/거래처 자동 연결
+      final matches = app.stockItems.where((s) =>
+          s.name.replaceAll(' ', '') == it.name.replaceAll(' ', ''));
+      if (matches.isNotEmpty) {
+        final stock = matches.first;
+        lines.add(OrderLine(
+          itemId: stock.id,
+          itemName: stock.name,
+          qty: it.qty,
+          unit: it.unit == '개' && stock.unit.isNotEmpty
+              ? stock.unit
+              : it.unit,
+          price: stock.lastPrice,
+        ));
+        if (supplierId == null && stock.supplierId.isNotEmpty) {
+          supplierId = stock.supplierId;
+        }
+      } else {
+        // 재고에 없는 품목도 그대로 발주 줄에 추가 (단가 0)
+        lines.add(OrderLine(
+          itemId: '',
+          itemName: it.name,
+          qty: it.qty,
+          unit: it.unit,
+        ));
+      }
+    }
+
+    Navigator.pushReplacement(
+      context,
+      MaterialPageRoute(
+        builder: (_) => OrderEditScreen(
+            prefillLines: lines, prefillSupplierId: supplierId),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final items = _items;
+    final app = context.watch<AppState>();
+    return Scaffold(
+      backgroundColor: AppColors.background,
+      appBar: AppBar(title: const Text('구매 메모 인식')),
+      body: ListView(
+        padding: const EdgeInsets.all(16),
+        children: [
+          if (items == null)
+            Container(
+              margin: const EdgeInsets.only(bottom: 16),
+              padding: const EdgeInsets.all(14),
+              decoration: BoxDecoration(
+                color: AppColors.primarySoft,
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: const Text(
+                '손으로 쓴 장보기 메모, 포스트잇, 칠판 메모를 찍으면\n'
+                '품목을 읽어서 발주 리스트로 바로 만들어드려요!\n'
+                '예) "양파 2망, 두부 5모, 계란 1판"',
+                style: TextStyle(fontSize: 15, height: 1.5),
+              ),
+            ),
+          scanButton(items == null ? '메모 촬영하기' : '다시 촬영하기', _scan),
+          const SizedBox(height: 16),
+          if (items != null) ...[
+            Card(
+              child: Padding(
+                padding: const EdgeInsets.all(14),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('인식된 품목 ${items.length}개',
+                        style: const TextStyle(
+                            fontSize: 17, fontWeight: FontWeight.bold)),
+                    const Divider(),
+                    ...items.asMap().entries.map((e) {
+                      final inStock = app.stockItems.any((s) =>
+                          s.name.replaceAll(' ', '') ==
+                          e.value.name.replaceAll(' ', ''));
+                      return Row(
+                        children: [
+                          Icon(
+                            inStock
+                                ? Icons.link_rounded
+                                : Icons.fiber_new_rounded,
+                            size: 20,
+                            color: inStock
+                                ? AppColors.primary
+                                : AppColors.accent,
+                          ),
+                          const SizedBox(width: 6),
+                          Expanded(
+                            child: Text(
+                              '${e.value.name}  ${formatQty(e.value.qty)}${e.value.unit}',
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(fontSize: 16),
+                            ),
+                          ),
+                          IconButton(
+                            icon: const Icon(Icons.close, size: 20),
+                            onPressed: () => setState(
+                                () => items.removeAt(e.key)),
+                          ),
+                        ],
+                      );
+                    }),
+                    const SizedBox(height: 4),
+                    const Text(
+                      '🔗 = 재고에 있는 품목 (단가·거래처 자동 연결)\n'
+                      '🆕 = 새 품목 (발주서에 이름 그대로 추가)',
+                      style: TextStyle(fontSize: 13, color: Colors.grey),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(height: 12),
+            FilledButton.icon(
+              onPressed: items.isEmpty ? null : _goToOrder,
+              icon: const Icon(Icons.shopping_cart_checkout_rounded),
+              label: Text('이 ${items.length}개로 발주 만들기'),
+            ),
+          ],
         ],
       ),
       bottomNavigationBar: const SafeArea(child: AdBanner()),

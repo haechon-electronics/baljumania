@@ -14,7 +14,7 @@ class StockScreen extends StatefulWidget {
 }
 
 class _StockScreenState extends State<StockScreen> {
-  String _category = '전체'; // 전체, 식자재, 소모품
+  String _category = '전체'; // 전체 + kStockCategories
 
   @override
   Widget build(BuildContext context) {
@@ -43,10 +43,12 @@ class _StockScreenState extends State<StockScreen> {
       ),
       body: Column(
         children: [
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
-            child: Row(
-              children: ['전체', '식자재', '소모품'].map((c) {
+          SizedBox(
+            height: 58,
+            child: ListView(
+              scrollDirection: Axis.horizontal,
+              padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
+              children: ['전체', ...kStockCategories].map((c) {
                 final selected = _category == c;
                 return Padding(
                   padding: const EdgeInsets.only(right: 8),
@@ -134,7 +136,33 @@ class _StockCard extends StatelessWidget {
       );
     }
 
-    return Card(
+    return Dismissible(
+      key: ValueKey('stock_${item.id}'),
+      direction: DismissDirection.endToStart,
+      background: Container(
+        alignment: Alignment.centerRight,
+        margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+        padding: const EdgeInsets.only(right: 24),
+        decoration: BoxDecoration(
+          color: AppColors.danger,
+          borderRadius: BorderRadius.circular(16),
+        ),
+        child: const Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.delete_rounded, color: Colors.white, size: 28),
+            Text('삭제',
+                style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 14,
+                    fontWeight: FontWeight.bold)),
+          ],
+        ),
+      ),
+      confirmDismiss: (_) => _confirmDelete(context),
+      onDismissed: (_) =>
+          context.read<AppState>().deleteStockItem(item.id),
+      child: Card(
       child: InkWell(
         borderRadius: BorderRadius.circular(16),
         onTap: () => Navigator.push(
@@ -154,9 +182,12 @@ class _StockCard extends StatelessWidget {
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: Icon(
-                  item.category == '소모품'
-                      ? Icons.cleaning_services_rounded
-                      : Icons.restaurant_rounded,
+                  switch (item.category) {
+                    '소모품' => Icons.cleaning_services_rounded,
+                    '주류·음료' => Icons.local_bar_rounded,
+                    '기타' => Icons.inventory_2_rounded,
+                    _ => Icons.restaurant_rounded,
+                  },
                   color: item.isLow ? AppColors.accent : AppColors.primary,
                   size: 26,
                 ),
@@ -234,6 +265,29 @@ class _StockCard extends StatelessWidget {
             ],
           ),
         ),
+      ),
+      ),
+    );
+  }
+
+  Future<bool?> _confirmDelete(BuildContext context) {
+    return showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('품목 삭제',
+            style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+        content: Text('${item.name}을(를) 삭제하시겠습니까?',
+            style: const TextStyle(fontSize: 17)),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('취소', style: TextStyle(fontSize: 17))),
+          TextButton(
+              onPressed: () => Navigator.pop(ctx, true),
+              child: const Text('삭제',
+                  style: TextStyle(
+                      fontSize: 17, color: AppColors.danger))),
+        ],
       ),
     );
   }

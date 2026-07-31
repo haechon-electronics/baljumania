@@ -9,8 +9,14 @@ import 'order_detail_screen.dart';
 /// 발주 등록 화면
 class OrderEditScreen extends StatefulWidget {
   final StockItem? prefillItem;
+  final List<OrderLine>? prefillLines; // 구매 메모 스캔 등에서 미리 담아온 품목들
+  final String? prefillSupplierId;
 
-  const OrderEditScreen({super.key, this.prefillItem});
+  const OrderEditScreen(
+      {super.key,
+      this.prefillItem,
+      this.prefillLines,
+      this.prefillSupplierId});
 
   @override
   State<OrderEditScreen> createState() => _OrderEditScreenState();
@@ -25,6 +31,13 @@ class _OrderEditScreenState extends State<OrderEditScreen> {
   @override
   void initState() {
     super.initState();
+    if (widget.prefillLines != null) {
+      _lines.addAll(widget.prefillLines!);
+    }
+    if (widget.prefillSupplierId != null &&
+        widget.prefillSupplierId!.isNotEmpty) {
+      _supplierId = widget.prefillSupplierId;
+    }
     final item = widget.prefillItem;
     if (item != null) {
       _supplierId = item.supplierId.isNotEmpty ? item.supplierId : null;

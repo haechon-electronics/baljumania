@@ -153,24 +153,23 @@ class _StockEditScreenState extends State<StockEditScreen> {
           const SizedBox(height: 18),
 
           const _FieldLabel('분류'),
-          Row(
-            children: ['식자재', '소모품'].map((c) {
+          Wrap(
+            spacing: 8,
+            runSpacing: 4,
+            children: kStockCategories.map((c) {
               final selected = _category == c;
-              return Padding(
-                padding: const EdgeInsets.only(right: 8),
-                child: ChoiceChip(
-                  label: Text(c,
-                      style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
-                          color: selected
-                              ? Colors.white
-                              : AppColors.textDark)),
-                  selected: selected,
-                  selectedColor: AppColors.primary,
-                  backgroundColor: Colors.white,
-                  onSelected: (_) => setState(() => _category = c),
-                ),
+              return ChoiceChip(
+                label: Text(c,
+                    style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                        color: selected
+                            ? Colors.white
+                            : AppColors.textDark)),
+                selected: selected,
+                selectedColor: AppColors.primary,
+                backgroundColor: Colors.white,
+                onSelected: (_) => setState(() => _category = c),
               );
             }).toList(),
           ),

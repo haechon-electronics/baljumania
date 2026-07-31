@@ -41,13 +41,27 @@ class ScannedBizCert {
   String address = '';
 }
 
+/// 구매 메모(장보기 리스트) 항목
+class ScannedBuyItem {
+  String name;
+  double qty;
+  String unit;
+  ScannedBuyItem({required this.name, this.qty = 1, this.unit = '개'});
+}
+
 double _num(String s) =>
     double.tryParse(s.replaceAll(',', '').replaceAll('원', '').trim()) ?? 0;
 
 /// OCR 텍스트로 문서 종류 자동 판별 (무료 모드용)
-/// 반환: receipt / salesReport / bizCert / menu / unknown
+/// 반환: receipt / salesReport / bizCert / menu / buyList / unknown
 String classifyDocument(String text) {
   final t = text.replaceAll(' ', '').toLowerCase();
+
+  // 0) 구매 메모: 명시적 키워드가 있으면 확정급
+  for (final w in ['구매목록', '구매리스트', '장보기', '살것', '사야할',
+      '살거', '살목록', '발주목록', '주문할것', '장볼것']) {
+    if (t.contains(w)) return 'buyList';
+  }
 
   // 1) 사업자등록증: 확실한 키워드
   if (t.contains('사업자등록증') ||
@@ -126,10 +140,64 @@ String classifyDocument(String text) {
   ]..sort((a, b) => b.$2.compareTo(a.$2));
 
   if (best.first.$2 == 0) {
-    // 신호 전혀 없으면: 가격 줄 있으면 영수증 추정, 없으면 unknown
-    return qtyPriceLines >= 1 || priceLines >= 2 ? 'receipt' : 'unknown';
+    // 신호 전혀 없으면: 가격 줄 있으면 영수증 추정
+    if (qtyPriceLines >= 1 || priceLines >= 2) return 'receipt';
+    // 가격 없이 짧은 품목 줄만 여러 개면 구매 메모로 추정
+    if (parseBuyListText(text).length >= 2) return 'buyList';
+    return 'unknown';
   }
   return best.first.$1;
+}
+
+/// 구매 메모 파싱: "품목", "품목 수량단위", "- 품목 x2" 등 한 줄씩 인식
+List<ScannedBuyItem> parseBuyListText(String text) {
+  final results = <ScannedBuyItem>[];
+  for (final raw in text.split('\n')) {
+    var line = raw.trim();
+    if (line.isEmpty) continue;
+    // 글머리표/번호/체크박스 제거 (- • * · 1. 2) ☐ ✓ 등)
+    line = line.replaceFirst(RegExp(r'^[-•*·○□☐☑✓✔oO]+[\s.]*'), '');
+    line = line.replaceFirst(RegExp(r'^\d{1,2}[.)）]\s*'), '');
+    line = line.trim();
+    if (line.isEmpty || line.length < 2) continue;
+    if (_isSkipLine(line)) continue;
+    // 숨자/기호만 있는 줄, 날짜 줄 제외
+    if (RegExp(r'^[\d,.\s원/\-:]+$').hasMatch(line)) continue;
+    if (RegExp(r'^(20\d{2}|\d{1,2}월)').hasMatch(line)) continue;
+    // 제목 줄 제외 (구매목록, 장보기 등)
+    final noSpace = line.replaceAll(' ', '');
+    if (['구매목록', '구매리스트', '장보기', '살것', '살거', '발주목록',
+        '사야할것', '주문할것', '메모', 'todo', 'list']
+        .any((w) => noSpace.toLowerCase() == w)) {
+      continue;
+    }
+
+    // 패턴 1: 이름 + 수량 + 단위 (양파 2kg / 두부 3모 / 계란 x2 / 휴지 2개)
+    final m = RegExp(
+            r'^(.+?)\s*[xX×*]?\s*(\d+(?:\.\d+)?)\s*(kg|g|l|ml|개|모|단|판|봉|팩|박스|병|캔|줄|근|포|장|묶음|마리|망|자루|통|세트|ea)?\s*$',
+            caseSensitive: false)
+        .firstMatch(line);
+    if (m != null) {
+      final name = m.group(1)!.trim().replaceAll(RegExp(r'[:·.,]+$'), '');
+      if (name.length >= 2 && !RegExp(r'^[\d,.\-]+$').hasMatch(name)) {
+        results.add(ScannedBuyItem(
+          name: name,
+          qty: double.tryParse(m.group(2)!) ?? 1,
+          unit: (m.group(3) ?? '개').toLowerCase(),
+        ));
+        continue;
+      }
+    }
+
+    // 패턴 2: 이름만 (고추장 / 대파)
+    final name = line.replaceAll(RegExp(r'[:·.,]+$'), '').trim();
+    if (name.length >= 2 &&
+        name.length <= 20 &&
+        !RegExp(r'\d{4,}').hasMatch(name)) {
+      results.add(ScannedBuyItem(name: name));
+    }
+  }
+  return results;
 }
 
 /// 날짜 추출 (2025-01-03, 2025.01.03, 2025/01/03, 01/03 등)

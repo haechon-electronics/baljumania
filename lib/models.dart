@@ -33,11 +33,14 @@ class Supplier {
       );
 }
 
+/// 재고 분류 목록 (전 화면 공용)
+const List<String> kStockCategories = ['식자재', '주류·음료', '소모품', '기타'];
+
 /// 품목 (재고)
 class StockItem {
   String id;
   String name;
-  String category; // '식자재', '소모품'
+  String category; // kStockCategories 중 하나
   String unit; // kg, 개, 박스, 단, 모 등
   double quantity; // 현재 재고량
   double minQuantity; // 최소 재고 (알림 기준)

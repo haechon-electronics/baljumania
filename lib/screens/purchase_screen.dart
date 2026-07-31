@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import '../app_state.dart';
+import '../models.dart';
 import '../models2.dart';
 import '../theme.dart';
 import '../utils.dart';
@@ -228,7 +229,7 @@ class _PurchaseEditSheetState extends State<_PurchaseEditSheet> {
             const SizedBox(height: 12),
             Wrap(
               spacing: 8,
-              children: ['식자재', '소모품'].map((c) {
+              children: kStockCategories.map((c) {
                 final selected = _category == c;
                 return ChoiceChip(
                   label: Text(c,

@@ -124,6 +124,16 @@ class _SmartScanScreenState extends State<SmartScanScreen> {
                 preloadedGemini: geminiData),
           );
           break;
+        case 'buyList':
+          _confirmAndGo(
+            '구매 메모 (장보기 리스트)',
+            Icons.edit_note_rounded,
+            '적으신 품목을 발주 리스트로 만들어드려요',
+            BuyListScanScreen(
+                preloadedOcr: ocr.isEmpty ? null : ocr,
+                preloadedGemini: geminiData),
+          );
+          break;
         default:
           // 판별 실패 → 찍은 사진 그대로 종류만 고르게
           _chooseTypeAndGo();
@@ -231,6 +241,7 @@ class _SmartScanScreenState extends State<SmartScanScreen> {
               _typePick(ctx, Icons.point_of_sale, '포스 매출일보', 'salesReport'),
               _typePick(ctx, Icons.badge, '사업자등록증', 'bizCert'),
               _typePick(ctx, Icons.menu_book, '메뉴판', 'menu'),
+              _typePick(ctx, Icons.edit_note_rounded, '구매 메모 → 발주 만들기', 'buyList'),
             ],
           ),
         ),
@@ -305,6 +316,11 @@ class _SmartScanScreenState extends State<SmartScanScreen> {
               preloadedGemini: gemini,
               preloadedImageB64: imageB64);
           break;
+        case 'buyList':
+          screen = BuyListScanScreen(
+              preloadedOcr: ocr.isEmpty ? null : ocr,
+              preloadedGemini: gemini);
+          break;
         default:
           screen = MenuBoardScanScreen(
               preloadedOcr: ocr.isEmpty ? null : ocr,
@@ -352,7 +368,7 @@ class _SmartScanScreenState extends State<SmartScanScreen> {
                 ),
                 const SizedBox(height: 6),
                 Text(
-                  '영수증인지, 매출일보인지, 사업자등록증인지\n제가 알아서 판별하고 입력해드려요.',
+                  '영수증, 매출일보, 손글씨 구매 메모까지\n제가 알아서 판별하고 입력해드려요.',
                   textAlign: TextAlign.center,
                   style: TextStyle(
                       fontSize: 15,
@@ -443,6 +459,8 @@ class _SmartScanScreenState extends State<SmartScanScreen> {
               Icons.badge, '사업자등록증', const BizCertScanScreen()),
           _manualTile(
               Icons.menu_book, '메뉴판', const MenuBoardScanScreen()),
+          _manualTile(Icons.edit_note_rounded, '구매 메모 → 발주 만들기',
+              const BuyListScanScreen()),
         ],
       ),
       bottomNavigationBar: const SafeArea(child: AdBanner()),
