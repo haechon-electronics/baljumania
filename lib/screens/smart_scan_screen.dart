@@ -60,14 +60,10 @@ class _SmartScanScreenState extends State<SmartScanScreen> {
         if (ocr.trim().isEmpty) {
           setState(() {
             _scanning = false;
-            _lastFail = svc.aiEnabled
-                ? 'AI 서버 응답이 없고 기본인식도 글자를 찾지 못했어요.\n'
-                    '인터넷 연결을 확인하고, 문서가 화면에 꽉 차게 밝은 곳에서 다시 찍어주세요.'
-                : '글자를 인식하지 못했어요.\n'
-                    '· 문서가 화면에 꽉 차게, 초점을 맞춰서 찍어주세요\n'
-                    '· 그림자 없이 밝은 곳에서 찍으면 더 잘 읽혀요\n'
-                    '💡 오늘 무료 AI 인식을 모두 썼어요. 본인 키를 넣으면\n'
-                    '무제한으로 쓸 수 있어요! (더보기 → AI 정밀인식 설정)';
+            _lastFail = 'AI 서버 응답이 없고 기본인식도 글자를 찾지 못했어요.\n'
+                '· 인터넷 연결을 확인해주세요\n'
+                '· 문서가 화면에 꽉 차게, 초점을 맞춰서 찍어주세요\n'
+                '· 그림자 없이 밝은 곳에서 찍으면 더 잘 읽혀요';
           });
           return;
         }
@@ -341,10 +337,9 @@ class _SmartScanScreenState extends State<SmartScanScreen> {
 
   @override
   Widget build(BuildContext context) {
-    // 내장 AI 포함 사용 가능 여부 (본인 키 또는 오늘 무료분 잔여)
+    // AI 정밀인식은 키 내장으로 항상 켜짐 (무제한)
     context.select<AppState, bool>((a) => a.geminiApiKey.isNotEmpty);
     final svc = ScanService.instance;
-    final ai = svc.aiEnabled;
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -379,11 +374,9 @@ class _SmartScanScreenState extends State<SmartScanScreen> {
                 ),
                 const SizedBox(height: 8),
                 Text(
-                  !ai
-                      ? '(오늘 무료 AI 소진 — 기본인식 모드 · 내일 다시 충전돼요)'
-                      : svc.hasUserKey
-                          ? '(AI 정밀인식 · 본인 키 무제한)'
-                          : '(AI 정밀인식 켜짐 · 오늘 무료 ${svc.freeRemainingToday}회 남음)',
+                  svc.hasUserKey
+                      ? '(AI 정밀인식 · 본인 키 사용 중)'
+                      : '(AI 정밀인식 켜짐 · 무제한 무료)',
                   style: TextStyle(
                       fontSize: 13, color: Colors.grey.shade600),
                 ),

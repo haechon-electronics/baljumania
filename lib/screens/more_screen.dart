@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../app_state.dart';
-import '../scan_service.dart';
 import '../theme.dart';
 import '../notification_service.dart';
 import 'analytics_screen.dart';
@@ -120,10 +119,10 @@ class MoreScreen extends StatelessWidget {
             _IosTile(
               icon: Icons.auto_awesome,
               iconBg: const Color(0xFFFF9500),
-              title: 'AI 정밀인식 설정',
+              title: 'AI 정밀인식',
               subtitle: app.geminiApiKey.isEmpty
-                  ? '켜짐 · 하루 ${ScanService.freeDailyLimit}회 무료 제공 (오늘 ${ScanService.instance.freeRemainingToday}회 남음)'
-                  : '켜짐 · 본인 키 사용 중 (무제한)',
+                  ? '켜짐 · 무제한 무료 제공 ✨'
+                  : '켜짐 · 본인 키 사용 중',
               onTap: () => _aiSettings(context, app),
             ),
             _IosTile(
@@ -203,14 +202,12 @@ class MoreScreen extends StatelessWidget {
                 style:
                     TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
             const SizedBox(height: 8),
-            Text(
-              '✨ AI 정밀인식은 기본으로 켜져 있어요! (하루 ${ScanService.freeDailyLimit}회 무료 제공)\n'
-              '오늘 남은 무료 횟수: ${ScanService.instance.freeRemainingToday}회\n\n'
-              '더 많이 쓰고 싶으면 본인 키를 등록하세요 (무제한).\n'
-              '키 발급: aistudio.google.com 접속 → 구글 로그인 →\n'
-              '"Get API key" 버튼 → 복사해서 아래에 붙여넣기',
-              style: const TextStyle(
-                  fontSize: 14, color: Colors.grey, height: 1.5),
+            const Text(
+              '✨ AI 정밀인식은 기본으로 켜져 있어요! (무제한 무료 제공)\n'
+              '구겨진 영수증, 손글씨 메모까지 똑똑하게 읽어내요.\n\n'
+              '따로 설정할 건 없지만, 원하면 본인 Gemini 키로\n'
+              '바꿔 쓸 수도 있어요 (aistudio.google.com에서 발급).',
+              style: TextStyle(fontSize: 14, color: Colors.grey, height: 1.5),
             ),
             const SizedBox(height: 14),
             TextField(
@@ -235,7 +232,7 @@ class MoreScreen extends StatelessWidget {
                         ScaffoldMessenger.of(context).showSnackBar(
                           const SnackBar(
                               content: Text(
-                                  '본인 키가 삭제되었어요. 기본 제공 AI(하루 15회)로 계속 사용돼요.')),
+                                  '본인 키가 삭제되었어요. 기본 제공 AI로 계속 무제한 사용돼요.')),
                         );
                       },
                       child: const Text('키 삭제'),
@@ -251,8 +248,8 @@ class MoreScreen extends StatelessWidget {
                       ScaffoldMessenger.of(context).showSnackBar(
                         SnackBar(
                             content: Text(ctrl.text.trim().isEmpty
-                                ? '기본 제공 AI(하루 15회) 모드예요'
-                                : '본인 키 등록 완료! 이제 무제한이에요 🎉')),
+                                ? '기본 제공 AI(무제한)로 사용해요'
+                                : '본인 키 등록 완료! 🎉')),
                       );
                     },
                     child: const Text('저장'),
