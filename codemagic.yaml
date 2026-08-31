@@ -1,0 +1,67 @@
+# 발주매니아 Codemagic CI/CD 설정
+# https://codemagic.io 에서 이 저장소를 연결하면 자동 인식됩니다.
+workflows:
+
+  # ── 1. iOS 미서명 빌드 (Apple 개발자 계정 없이 빌드 확인용) ──
+  ios-unsigned:
+    name: iOS Build (unsigned)
+    max_build_duration: 60
+    instance_type: mac_mini_m2
+    environment:
+      flutter: 3.35.4
+      xcode: latest
+      cocoapods: default
+    scripts:
+      - name: Flutter 의존성 설치
+        script: flutter pub get
+      - name: 코드 분석
+        script: flutter analyze
+      - name: iOS 빌드 (미서명)
+        script: flutter build ios --release --no-codesign
+    artifacts:
+      - build/ios/iphoneos/*.app
+      - flutter_drive.log
+
+  # ── 2. iOS App Store 배포 빌드 (Apple 개발자 계정 연결 후 사용) ──
+  ios-release:
+    name: iOS Release (App Store)
+    max_build_duration: 60
+    instance_type: mac_mini_m2
+    integrations:
+      app_store_connect: baljumania_asc_key   # Codemagic 팀 설정에서 App Store Connect API 키 등록 후 이름 일치시킬 것
+    environment:
+      flutter: 3.35.4
+      xcode: latest
+      cocoapods: default
+      ios_signing:
+        distribution_type: app_store
+        bundle_identifier: com.baljumania.orders
+    scripts:
+      - name: Flutter 의존성 설치
+        script: flutter pub get
+      - name: 코드 분석
+        script: flutter analyze
+      - name: iOS IPA 빌드 (자동 서명)
+        script: flutter build ipa --release --export-options-plist=/Users/builder/export_options.plist
+    artifacts:
+      - build/ios/ipa/*.ipa
+    publishing:
+      app_store_connect:
+        auth: integration
+        submit_to_testflight: true
+
+  # ── 3. Android 빌드 (참고용 — 현재는 샌드박스에서 직접 빌드 중) ──
+  android-release:
+    name: Android Release (AAB)
+    max_build_duration: 60
+    instance_type: linux_x2
+    environment:
+      flutter: 3.35.4
+      java: 17
+    scripts:
+      - name: Flutter 의존성 설치
+        script: flutter pub get
+      - name: AAB 빌드
+        script: flutter build appbundle --release
+    artifacts:
+      - build/app/outputs/bundle/release/*.aab
