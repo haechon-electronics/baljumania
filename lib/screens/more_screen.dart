@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../app_state.dart';
+import '../scan_service.dart';
 import '../theme.dart';
 import '../notification_service.dart';
 import 'analytics_screen.dart';
@@ -121,8 +122,8 @@ class MoreScreen extends StatelessWidget {
               iconBg: const Color(0xFFFF9500),
               title: 'AI 정밀인식 설정',
               subtitle: app.geminiApiKey.isEmpty
-                  ? '꺼짐 (무료 기본인식 사용 중)'
-                  : '켜짐 · Gemini 연결됨',
+                  ? '켜짐 · 하루 ${ScanService.freeDailyLimit}회 무료 제공 (오늘 ${ScanService.instance.freeRemainingToday}회 남음)'
+                  : '켜짐 · 본인 키 사용 중 (무제한)',
               onTap: () => _aiSettings(context, app),
             ),
             _IosTile(
@@ -202,19 +203,21 @@ class MoreScreen extends StatelessWidget {
                 style:
                     TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
             const SizedBox(height: 8),
-            const Text(
-              '키를 넣으면 영수증·일보·사업자등록증 인식률이 크게 올라가요.\n'
-              '비용: 사진 1장당 약 1~5원 (무료 쿼터로도 충분)\n\n'
+            Text(
+              '✨ AI 정밀인식은 기본으로 켜져 있어요! (하루 ${ScanService.freeDailyLimit}회 무료 제공)\n'
+              '오늘 남은 무료 횟수: ${ScanService.instance.freeRemainingToday}회\n\n'
+              '더 많이 쓰고 싶으면 본인 키를 등록하세요 (무제한).\n'
               '키 발급: aistudio.google.com 접속 → 구글 로그인 →\n'
               '"Get API key" 버튼 → 복사해서 아래에 붙여넣기',
-              style: TextStyle(fontSize: 14, color: Colors.grey, height: 1.5),
+              style: const TextStyle(
+                  fontSize: 14, color: Colors.grey, height: 1.5),
             ),
             const SizedBox(height: 14),
             TextField(
               controller: ctrl,
               style: const TextStyle(fontSize: 15),
               decoration: const InputDecoration(
-                labelText: 'Gemini API 키',
+                labelText: '본인 Gemini API 키 (선택사항)',
                 hintText: 'AIza 또는 AQ.로 시작하는 키 붙여넣기',
               ),
             ),
@@ -229,6 +232,11 @@ class MoreScreen extends StatelessWidget {
                       onPressed: () {
                         app.setGeminiApiKey('');
                         Navigator.pop(ctx);
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                              content: Text(
+                                  '본인 키가 삭제되었어요. 기본 제공 AI(하루 15회)로 계속 사용돼요.')),
+                        );
                       },
                       child: const Text('키 삭제'),
                     ),
@@ -243,8 +251,8 @@ class MoreScreen extends StatelessWidget {
                       ScaffoldMessenger.of(context).showSnackBar(
                         SnackBar(
                             content: Text(ctrl.text.trim().isEmpty
-                                ? '무료 기본인식 모드로 설정되었어요'
-                                : 'AI 정밀인식이 켜졌어요! 🎉')),
+                                ? '기본 제공 AI(하루 15회) 모드예요'
+                                : '본인 키 등록 완료! 이제 무제한이에요 🎉')),
                       );
                     },
                     child: const Text('저장'),

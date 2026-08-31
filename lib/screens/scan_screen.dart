@@ -44,8 +44,10 @@ class ScanHubScreen extends StatelessWidget {
                 Expanded(
                   child: Text(
                     ai
-                        ? 'AI 정밀인식 켜짐 (Gemini) — 구겨진 영수증·손글씨도 인식돼요!'
-                        : '기본 무료인식 모드입니다.\n[더보기 → AI 정밀인식 설정]에서 키를 넣으면 인식률이 크게 올라가요.',
+                        ? (ScanService.instance.hasUserKey
+                            ? 'AI 정밀인식 켜짐 (본인 키 · 무제한) — 구겨진 영수증·손글씨도 인식돼요!'
+                            : 'AI 정밀인식 켜짐 — 오늘 무료 인식 ${ScanService.instance.freeRemainingToday}회 남았어요 (매일 초기화)')
+                        : '오늘 무료 AI 인식을 모두 썼어요. 기본인식으로 계속 쓰거나,\n[더보기 → AI 정밀인식 설정]에 본인 키를 넣으면 무제한이에요.',
                     style: const TextStyle(fontSize: 14, height: 1.4),
                   ),
                 ),

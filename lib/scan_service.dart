@@ -2,22 +2,78 @@ import 'dart:convert';
 
 import 'package:flutter/foundation.dart';
 import 'package:google_mlkit_text_recognition/google_mlkit_text_recognition.dart';
+import 'package:hive/hive.dart';
 import 'package:http/http.dart' as http;
 import 'package:image_picker/image_picker.dart';
 
+import 'gemini_key.dart';
+
 /// 촬영 → 글자 인식 서비스
-/// 1차: ML Kit (완전 무료, 폰에서 처리)
-/// 2차: Gemini Flash (API 키 있으면 자동 사용, 해석 정확도 대폭 상승)
+/// 1차: Gemini Flash AI 정밀인식 (기본 내장 — 하루 15회 무료 제공)
+/// 2차: ML Kit (완전 무료, 폰에서 처리) — AI 실패/한도초과 시 자동 폴백
+/// 본인 Gemini 키를 설정에 등록하면 횟수 제한 없이 사용 가능
 class ScanService {
   ScanService._();
   static final ScanService instance = ScanService._();
 
   final _picker = ImagePicker();
 
-  /// Gemini API 키 (설정에서 입력, 없으면 ML Kit만 사용)
+  /// 사용자 본인 Gemini API 키 (선택사항 — 등록 시 무제한)
   String geminiApiKey = '';
 
-  bool get aiEnabled => geminiApiKey.trim().isNotEmpty;
+  /// 기본 제공 AI 인식 일일 한도 (내장 키 사용 시)
+  static const int freeDailyLimit = 15;
+
+  bool get hasUserKey => geminiApiKey.trim().isNotEmpty;
+
+  /// AI 정밀인식 사용 가능 여부 (내장 키가 있으므로 항상 켜짐,
+  /// 단 기본 제공분은 하루 한도 내에서만)
+  bool get aiEnabled => hasUserKey || freeRemainingToday > 0;
+
+  String get _effectiveKey =>
+      hasUserKey ? geminiApiKey.trim() : EmbeddedGeminiKey.value;
+
+  // ===== 기본 제공분 일일 사용량 관리 (Hive settings 박스에 영속) =====
+  String _todayStamp() {
+    final now = DateTime.now();
+    return '${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}';
+  }
+
+  Box? get _settings =>
+      Hive.isBoxOpen('settings') ? Hive.box('settings') : null;
+
+  // Hive를 못 쓰는 상황(테스트 등) 대비 메모리 백업
+  String _memStamp = '';
+  int _memCount = 0;
+
+  int get _usedToday {
+    final box = _settings;
+    if (box != null) {
+      final stamp = box.get('aiDayStamp') as String? ?? '';
+      if (stamp != _todayStamp()) return 0;
+      return box.get('aiDayCount') as int? ?? 0;
+    }
+    if (_memStamp != _todayStamp()) return 0;
+    return _memCount;
+  }
+
+  /// 오늘 남은 기본 제공 AI 인식 횟수
+  int get freeRemainingToday {
+    final left = freeDailyLimit - _usedToday;
+    return left < 0 ? 0 : left;
+  }
+
+  Future<void> _countUse() async {
+    final stamp = _todayStamp();
+    final next = _usedToday + 1;
+    final box = _settings;
+    if (box != null) {
+      await box.put('aiDayStamp', stamp);
+      await box.put('aiDayCount', next);
+    }
+    _memStamp = stamp;
+    _memCount = next;
+  }
 
   /// 사진 선택/촬영
   Future<XFile?> pickImage({bool fromCamera = true}) async {
@@ -60,7 +116,8 @@ class ScanService {
   /// [task]에 따라 구조화된 JSON을 돌려받음
   Future<Map<String, dynamic>?> analyzeWithGemini(
       XFile image, String task) async {
-    if (!aiEnabled) return null;
+    // 본인 키 없으면 기본 제공분(하루 15회) 한도 확인 → 초과 시 ML Kit 폴백
+    if (!hasUserKey && freeRemainingToday <= 0) return null;
     try {
       final bytes = await image.readAsBytes();
       final b64 = base64Encode(bytes);
@@ -68,7 +125,7 @@ class ScanService {
       final prompt = _promptFor(task);
       // gemini-flash-lite-latest: 항상 최신 경량 모델을 가리키는 별칭 (구버전 은퇴 영향 없음)
       final url = Uri.parse(
-          'https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-lite-latest:generateContent?key=${geminiApiKey.trim()}');
+          'https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-lite-latest:generateContent?key=$_effectiveKey');
 
       final body = jsonEncode({
         'contents': [
@@ -98,6 +155,9 @@ class ScanService {
         if (kDebugMode) debugPrint('Gemini 오류 ${res.statusCode}: ${res.body}');
         return null;
       }
+
+      // 성공한 호출만 기본 제공분에서 차감 (본인 키는 무제한)
+      if (!hasUserKey) await _countUse();
 
       final data = jsonDecode(utf8.decode(res.bodyBytes));
       final text = data['candidates']?[0]?['content']?['parts']?[0]?['text']

@@ -66,8 +66,8 @@ class _SmartScanScreenState extends State<SmartScanScreen> {
                 : '글자를 인식하지 못했어요.\n'
                     '· 문서가 화면에 꽉 차게, 초점을 맞춰서 찍어주세요\n'
                     '· 그림자 없이 밝은 곳에서 찍으면 더 잘 읽혀요\n'
-                    '💡 더보기 → AI 정밀인식 설정에서 키를 넣으면\n'
-                    '인식률이 크게 올라갑니다!';
+                    '💡 오늘 무료 AI 인식을 모두 썼어요. 본인 키를 넣으면\n'
+                    '무제한으로 쓸 수 있어요! (더보기 → AI 정밀인식 설정)';
           });
           return;
         }
@@ -341,8 +341,10 @@ class _SmartScanScreenState extends State<SmartScanScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final ai = context.select<AppState, bool>(
-        (a) => a.geminiApiKey.isNotEmpty);
+    // 내장 AI 포함 사용 가능 여부 (본인 키 또는 오늘 무료분 잔여)
+    context.select<AppState, bool>((a) => a.geminiApiKey.isNotEmpty);
+    final svc = ScanService.instance;
+    final ai = svc.aiEnabled;
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -375,14 +377,16 @@ class _SmartScanScreenState extends State<SmartScanScreen> {
                       height: 1.5,
                       color: Colors.grey.shade700),
                 ),
-                if (!ai) ...[
-                  const SizedBox(height: 8),
-                  Text(
-                    '(무료 기본인식 모드 — AI 키를 넣으면 판별이 더 똑똑해져요)',
-                    style: TextStyle(
-                        fontSize: 13, color: Colors.grey.shade600),
-                  ),
-                ],
+                const SizedBox(height: 8),
+                Text(
+                  !ai
+                      ? '(오늘 무료 AI 소진 — 기본인식 모드 · 내일 다시 충전돼요)'
+                      : svc.hasUserKey
+                          ? '(AI 정밀인식 · 본인 키 무제한)'
+                          : '(AI 정밀인식 켜짐 · 오늘 무료 ${svc.freeRemainingToday}회 남음)',
+                  style: TextStyle(
+                      fontSize: 13, color: Colors.grey.shade600),
+                ),
               ],
             ),
           ),
