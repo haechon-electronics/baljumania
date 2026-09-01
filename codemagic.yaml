@@ -15,7 +15,19 @@ workflows:
       cocoapods: default
     scripts:
       - name: AI 키 파일 생성 (저장소 미포함 보안 파일)
-        script: echo "$GEMINI_KEY_DART_B64" | base64 --decode > lib/gemini_key.dart
+        script: |
+          if [ -z "$GEMINI_KEY_DART_B64" ]; then
+            echo "❌ GEMINI_KEY_DART_B64 환경변수가 비어 있습니다!"
+            echo "   Codemagic → App settings → Environment variables 에서"
+            echo "   변수명 GEMINI_KEY_DART_B64 를 'gemini' 그룹에 Secure로 등록하세요."
+            exit 1
+          fi
+          echo "$GEMINI_KEY_DART_B64" | base64 --decode > lib/gemini_key.dart
+          if ! grep -q "EmbeddedGeminiKey" lib/gemini_key.dart; then
+            echo "❌ 키 파일 복원 실패 — base64 값이 손상됐습니다. 값을 다시 등록하세요."
+            exit 1
+          fi
+          echo "✅ gemini_key.dart 생성 완료 ($(wc -c < lib/gemini_key.dart) bytes)"
       - name: Flutter 의존성 설치
         script: flutter pub get
       - name: 코드 분석
@@ -44,7 +56,19 @@ workflows:
         bundle_identifier: com.baljumania.orders
     scripts:
       - name: AI 키 파일 생성 (저장소 미포함 보안 파일)
-        script: echo "$GEMINI_KEY_DART_B64" | base64 --decode > lib/gemini_key.dart
+        script: |
+          if [ -z "$GEMINI_KEY_DART_B64" ]; then
+            echo "❌ GEMINI_KEY_DART_B64 환경변수가 비어 있습니다!"
+            echo "   Codemagic → App settings → Environment variables 에서"
+            echo "   변수명 GEMINI_KEY_DART_B64 를 'gemini' 그룹에 Secure로 등록하세요."
+            exit 1
+          fi
+          echo "$GEMINI_KEY_DART_B64" | base64 --decode > lib/gemini_key.dart
+          if ! grep -q "EmbeddedGeminiKey" lib/gemini_key.dart; then
+            echo "❌ 키 파일 복원 실패 — base64 값이 손상됐습니다. 값을 다시 등록하세요."
+            exit 1
+          fi
+          echo "✅ gemini_key.dart 생성 완료 ($(wc -c < lib/gemini_key.dart) bytes)"
       - name: Flutter 의존성 설치
         script: flutter pub get
       - name: 코드 분석
@@ -70,7 +94,19 @@ workflows:
       java: 17
     scripts:
       - name: AI 키 파일 생성 (저장소 미포함 보안 파일)
-        script: echo "$GEMINI_KEY_DART_B64" | base64 --decode > lib/gemini_key.dart
+        script: |
+          if [ -z "$GEMINI_KEY_DART_B64" ]; then
+            echo "❌ GEMINI_KEY_DART_B64 환경변수가 비어 있습니다!"
+            echo "   Codemagic → App settings → Environment variables 에서"
+            echo "   변수명 GEMINI_KEY_DART_B64 를 'gemini' 그룹에 Secure로 등록하세요."
+            exit 1
+          fi
+          echo "$GEMINI_KEY_DART_B64" | base64 --decode > lib/gemini_key.dart
+          if ! grep -q "EmbeddedGeminiKey" lib/gemini_key.dart; then
+            echo "❌ 키 파일 복원 실패 — base64 값이 손상됐습니다. 값을 다시 등록하세요."
+            exit 1
+          fi
+          echo "✅ gemini_key.dart 생성 완료 ($(wc -c < lib/gemini_key.dart) bytes)"
       - name: Flutter 의존성 설치
         script: flutter pub get
       - name: AAB 빌드
