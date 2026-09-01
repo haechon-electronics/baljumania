@@ -8,10 +8,14 @@ workflows:
     max_build_duration: 60
     instance_type: mac_mini_m2
     environment:
+      groups:
+        - gemini   # Codemagic 팀 설정 → Environment variables에 GEMINI_KEY_DART_B64 등록 (아래 안내 참조)
       flutter: 3.35.4
       xcode: latest
       cocoapods: default
     scripts:
+      - name: AI 키 파일 생성 (저장소 미포함 보안 파일)
+        script: echo "$GEMINI_KEY_DART_B64" | base64 --decode > lib/gemini_key.dart
       - name: Flutter 의존성 설치
         script: flutter pub get
       - name: 코드 분석
@@ -30,6 +34,8 @@ workflows:
     integrations:
       app_store_connect: baljumania_asc_key   # Codemagic 팀 설정에서 App Store Connect API 키 등록 후 이름 일치시킬 것
     environment:
+      groups:
+        - gemini
       flutter: 3.35.4
       xcode: latest
       cocoapods: default
@@ -37,6 +43,8 @@ workflows:
         distribution_type: app_store
         bundle_identifier: com.baljumania.orders
     scripts:
+      - name: AI 키 파일 생성 (저장소 미포함 보안 파일)
+        script: echo "$GEMINI_KEY_DART_B64" | base64 --decode > lib/gemini_key.dart
       - name: Flutter 의존성 설치
         script: flutter pub get
       - name: 코드 분석
@@ -56,9 +64,13 @@ workflows:
     max_build_duration: 60
     instance_type: linux_x2
     environment:
+      groups:
+        - gemini
       flutter: 3.35.4
       java: 17
     scripts:
+      - name: AI 키 파일 생성 (저장소 미포함 보안 파일)
+        script: echo "$GEMINI_KEY_DART_B64" | base64 --decode > lib/gemini_key.dart
       - name: Flutter 의존성 설치
         script: flutter pub get
       - name: AAB 빌드
