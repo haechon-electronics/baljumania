@@ -43,3 +43,6 @@ app.*.map.json
 /android/app/debug
 /android/app/profile
 /android/app/release
+
+# AI 내장 키 (공개 저장소 유출 방지 — 로컬/CI 환경변수로만 관리)
+lib/gemini_key.dart
