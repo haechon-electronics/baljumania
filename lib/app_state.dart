@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:flutter/foundation.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'models.dart';
@@ -97,7 +99,8 @@ class AppState extends ChangeNotifier {
     notifyListeners();
   }
 
-  /// 발주주기/미입고/재고부족 기반으로 향후 7일치 아침 알림을 다시 예약
+  /// 발주주기/미입고/재고부족 기반으로 향후 14일치 아침 알림을 다시 예약
+  /// (앱을 오래 안 열어도 2주간 알림 유지)
   Future<void> rescheduleNotifications() async {
     final ns = NotificationService.instance;
     await ns.cancelAll();
@@ -106,7 +109,7 @@ class AppState extends ChangeNotifier {
     final now = DateTime.now();
     int id = 1;
 
-    for (int day = 0; day < 7; day++) {
+    for (int day = 0; day < 14; day++) {
       final target = DateTime(now.year, now.month, now.day + day,
           notifyHour, 0);
       if (target.isBefore(now)) continue;
@@ -153,7 +156,7 @@ class AppState extends ChangeNotifier {
         body: msgs.join('\n'),
         when: target,
       );
-      if (id > 20) break;
+      if (id > 40) break;
     }
   }
 
@@ -294,13 +297,37 @@ class AppState extends ChangeNotifier {
     rescheduleNotifications();
   }
 
-  /// 전체 입고 처리
+  /// 전체 입고 처리 (일괄 처리 — 라인마다 리로드/알림 재예약하지 않음)
   Future<void> receiveAllLines(PurchaseOrder order) async {
-    for (int i = 0; i < order.lines.length; i++) {
-      if (!order.lines[i].received) {
-        await receiveOrderLine(order, i);
+    // 저장소 기준 최신 발주를 다시 읽어 stale 객체 문제 방지
+    final raw = _orderBox.get(order.id);
+    final fresh =
+        raw is Map ? PurchaseOrder.fromMap(raw) : order;
+
+    bool changed = false;
+    for (final line in fresh.lines) {
+      if (line.received) continue;
+      line.received = true;
+      changed = true;
+
+      // 재고 증가 + 단가 이력
+      final item = stockById(line.itemId);
+      if (item != null) {
+        item.quantity += line.qty;
+        if (line.price > 0 && line.price != item.lastPrice) {
+          item.prevPrice = item.lastPrice;
+          item.lastPrice = line.price;
+        }
+        await _stockBox.put(item.id, item.toMap());
       }
     }
+    if (!changed) return;
+
+    fresh.status = 'done';
+    await _orderBox.put(fresh.id, fresh.toMap());
+    _loadAll();
+    notifyListeners();
+    rescheduleNotifications();
   }
 
   /// 미입고 발주 (예정일 지남)
@@ -348,6 +375,104 @@ class AppState extends ChangeNotifier {
 
   String _fmtQty(double q) =>
       q == q.roundToDouble() ? q.toInt().toString() : q.toStringAsFixed(1);
+
+  // ===== 데이터 백업/복원 =====
+  /// 모든 데이터를 JSON 문자열로 내보내기
+  String exportBackupJson() {
+    Map<String, dynamic> mapOf(dynamic e) =>
+        Map<String, dynamic>.from(e as Map);
+    final data = {
+      'app': 'baljumania',
+      'backupVersion': 1,
+      'exportedAt': DateTime.now().toIso8601String(),
+      'storeName': storeName,
+      'storeInfo': storeInfo.toMap(),
+      'notifyEnabled': notifyEnabled,
+      'notifyHour': notifyHour,
+      'suppliers': _supplierBox.values.map(mapOf).toList(),
+      'stock': _stockBox.values.map(mapOf).toList(),
+      'orders': _orderBox.values.map(mapOf).toList(),
+      'menus': _menuBox.values.map(mapOf).toList(),
+      'sales': _saleBox.values.map(mapOf).toList(),
+      'purchases': _purchaseBox.values.map(mapOf).toList(),
+      'employees': _employeeBox.values.map(mapOf).toList(),
+      'worklogs': _workLogBox.values.map(mapOf).toList(),
+    };
+    return jsonEncode(data);
+  }
+
+  /// JSON 문자열에서 데이터 복원. 성공 시 null, 실패 시 에러 메시지 반환.
+  Future<String?> importBackupJson(String raw) async {
+    Map<String, dynamic> data;
+    try {
+      final decoded = jsonDecode(raw.trim());
+      if (decoded is! Map<String, dynamic>) {
+        return '백업 파일 형식이 올바르지 않아요.';
+      }
+      data = decoded;
+    } catch (_) {
+      return '백업 내용을 읽을 수 없어요. 파일 전체를 정확히 붙여넣었는지 확인해주세요.';
+    }
+    if (data['app'] != 'baljumania') {
+      return '발주매니아 백업 파일이 아니에요.';
+    }
+
+    Future<void> restoreBox(Box box, String key) async {
+      final list = data[key];
+      if (list is! List) return;
+      await box.clear();
+      for (final item in list) {
+        if (item is Map) {
+          final map = Map<String, dynamic>.from(item);
+          final id = map['id'] as String? ?? _newId();
+          await box.put(id, map);
+        }
+      }
+    }
+
+    try {
+      await restoreBox(_supplierBox, 'suppliers');
+      await restoreBox(_stockBox, 'stock');
+      await restoreBox(_orderBox, 'orders');
+      await restoreBox(_menuBox, 'menus');
+      await restoreBox(_saleBox, 'sales');
+      await restoreBox(_purchaseBox, 'purchases');
+      await restoreBox(_employeeBox, 'employees');
+      await restoreBox(_workLogBox, 'worklogs');
+
+      // 설정 복원 (geminiApiKey는 기기별 설정이라 제외)
+      final name = data['storeName'] as String?;
+      if (name != null && name.isNotEmpty) {
+        await _settingsBox.put('storeName', name);
+        storeName = name;
+      }
+      final infoMap = data['storeInfo'];
+      if (infoMap is Map) {
+        await _settingsBox.put(
+            'storeInfo', Map<String, dynamic>.from(infoMap));
+        storeInfo = StoreInfo.fromMap(infoMap);
+      }
+      final nEnabled = data['notifyEnabled'];
+      if (nEnabled is bool) {
+        await _settingsBox.put('notifyEnabled', nEnabled);
+        notifyEnabled = nEnabled;
+      }
+      final nHour = data['notifyHour'];
+      if (nHour is int && nHour >= 0 && nHour <= 23) {
+        await _settingsBox.put('notifyHour', nHour);
+        notifyHour = nHour;
+      }
+      // 복원했으니 샘플 데이터 재삽입 방지
+      await _settingsBox.put('seeded', true);
+
+      _loadAll();
+      notifyListeners();
+      await rescheduleNotifications();
+      return null;
+    } catch (e) {
+      return '복원 중 오류가 발생했어요: $e';
+    }
+  }
 
   // ===== 가게 서류지갑 =====
   Future<void> saveStoreInfo(StoreInfo info) async {
@@ -418,24 +543,39 @@ class AppState extends ChangeNotifier {
 
     // 레시피 기반 재고 자동 차감
     if (deductStock) {
-      for (final entry in sale.menuSales.entries) {
-        final menu = menuById(entry.key);
-        if (menu == null) continue;
-        for (final r in menu.recipe) {
-          final item = _findStockByName(r.name);
-          if (item != null) {
-            double qty = r.qty;
-            if (r.unit == 'g' && item.unit == 'kg') qty = r.qty / 1000;
-            if (r.unit == 'kg' && item.unit == 'g') qty = r.qty * 1000;
-            item.quantity =
-                (item.quantity - qty * entry.value).clamp(0, 999999);
-            await _stockBox.put(item.id, item.toMap());
-          }
-        }
-      }
+      await _applySaleStock(sale, sign: -1);
     }
     _loadAll();
     notifyListeners();
+  }
+
+  /// 판매 기록 수정: 기존 재고 차감분 복원 → 새 기록으로 재차감
+  Future<void> updateSale(SaleRecord oldSale, SaleRecord newSale) async {
+    await _applySaleStock(oldSale, sign: 1); // 이전 차감 복원
+    newSale.id = oldSale.id;
+    await _saleBox.put(newSale.id, newSale.toMap());
+    await _applySaleStock(newSale, sign: -1); // 새 수량 차감
+    _loadAll();
+    notifyListeners();
+  }
+
+  /// 판매 기록의 레시피 기반 재고 반영 (sign: -1 차감, +1 복원)
+  Future<void> _applySaleStock(SaleRecord sale, {required int sign}) async {
+    for (final entry in sale.menuSales.entries) {
+      final menu = menuById(entry.key);
+      if (menu == null) continue;
+      for (final r in menu.recipe) {
+        final item = _findStockByName(r.name);
+        if (item != null) {
+          double qty = r.qty;
+          if (r.unit == 'g' && item.unit == 'kg') qty = r.qty / 1000;
+          if (r.unit == 'kg' && item.unit == 'g') qty = r.qty * 1000;
+          item.quantity =
+              (item.quantity + sign * qty * entry.value).clamp(0, 999999);
+          await _stockBox.put(item.id, item.toMap());
+        }
+      }
+    }
   }
 
   Future<void> deleteSale(String id) async {

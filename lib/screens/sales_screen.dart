@@ -85,6 +85,12 @@ class SalesScreen extends StatelessWidget {
                             fontSize: 18,
                             fontWeight: FontWeight.bold,
                             color: AppColors.primary)),
+                    // 탭 → 수정 화면 (재고 자동 복원 후 재차감)
+                    onTap: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                          builder: (_) => SaleEditScreen(sale: sale)),
+                    ),
                     onLongPress: () async {
                       final ok = await showDialog<bool>(
                         context: context,
@@ -122,9 +128,11 @@ class SalesScreen extends StatelessWidget {
   }
 }
 
-/// 판매 기록 입력
+/// 판매 기록 입력/수정
 class SaleEditScreen extends StatefulWidget {
-  const SaleEditScreen({super.key});
+  final SaleRecord? sale; // null이면 신규, 있으면 수정
+
+  const SaleEditScreen({super.key, this.sale});
 
   @override
   State<SaleEditScreen> createState() => _SaleEditScreenState();
@@ -139,6 +147,23 @@ class _SaleEditScreenState extends State<SaleEditScreen> {
 
   static const _channels = ['홀', '배민', '쿠팡이츠', '요기요', '기타'];
   static const _weathers = ['', '맑음', '흐림', '비', '눈', '폭염', '한파'];
+
+  bool get _isEdit => widget.sale != null;
+
+  @override
+  void initState() {
+    super.initState();
+    final s = widget.sale;
+    if (s != null) {
+      _date = DateTime.tryParse(s.date) ?? DateTime.now();
+      _channel = s.channel;
+      _weather = s.weather;
+      _menuSales.addAll(s.menuSales);
+      if (s.extraAmount > 0) {
+        _extraCtrl.text = s.extraAmount.toInt().toString();
+      }
+    }
+  }
 
   @override
   void dispose() {
@@ -163,11 +188,21 @@ class _SaleEditScreenState extends State<SaleEditScreen> {
       extraAmount: extra,
       weather: _weather,
     );
-    await app.saveSale(sale);
+    // 레시피가 등록된 메뉴가 판매되었을 때만 재고 차감 안내
+    final hasRecipe = sale.menuSales.keys
+        .any((id) => (app.menuById(id)?.recipe.isNotEmpty) ?? false);
+    if (_isEdit) {
+      await app.updateSale(widget.sale!, sale);
+    } else {
+      await app.saveSale(sale);
+    }
     if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-          content: Text('판매 기록 저장! 레시피 기반으로 재고가 차감되었습니다.',
-              style: TextStyle(fontSize: 16))));
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text(
+              _isEdit
+                  ? '판매 기록 수정 완료!${hasRecipe ? ' 재고도 다시 계산했어요.' : ''}'
+                  : '판매 기록 저장!${hasRecipe ? ' 레시피 기반으로 재고가 차감되었습니다.' : ''}',
+              style: const TextStyle(fontSize: 16))));
       Navigator.pop(context);
     }
   }
@@ -179,7 +214,7 @@ class _SaleEditScreenState extends State<SaleEditScreen> {
 
     return Scaffold(
       backgroundColor: AppColors.background,
-      appBar: AppBar(title: const Text('판매 기록 입력')),
+      appBar: AppBar(title: Text(_isEdit ? '판매 기록 수정' : '판매 기록 입력')),
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
@@ -189,8 +224,7 @@ class _SaleEditScreenState extends State<SaleEditScreen> {
               final picked = await showDatePicker(
                 context: context,
                 initialDate: _date,
-                firstDate:
-                    DateTime.now().subtract(const Duration(days: 90)),
+                firstDate: DateTime(2023, 1, 1),
                 lastDate: DateTime.now(),
               );
               if (picked != null) setState(() => _date = picked);
@@ -320,11 +354,20 @@ class _SaleEditScreenState extends State<SaleEditScreen> {
                             }),
                         SizedBox(
                           width: 52,
-                          child: Text(formatQty(qty),
-                              textAlign: TextAlign.center,
-                              style: const TextStyle(
-                                  fontSize: 20,
-                                  fontWeight: FontWeight.bold)),
+                          // 수량 탭 → 직접 입력 (47그릇 판 날 47번 탭 방지)
+                          child: InkWell(
+                            onTap: () => _typeQty(menu.id, menu.name, qty),
+                            borderRadius: BorderRadius.circular(8),
+                            child: Padding(
+                              padding: const EdgeInsets.symmetric(
+                                  vertical: 6),
+                              child: Text(formatQty(qty),
+                                  textAlign: TextAlign.center,
+                                  style: const TextStyle(
+                                      fontSize: 20,
+                                      fontWeight: FontWeight.bold)),
+                            ),
+                          ),
                         ),
                         _QtyBtn(
                             icon: Icons.add_rounded,
@@ -354,12 +397,50 @@ class _SaleEditScreenState extends State<SaleEditScreen> {
           ElevatedButton.icon(
             onPressed: _save,
             icon: const Icon(Icons.check_rounded, size: 26),
-            label: const Text('판매 기록 저장'),
+            label: Text(_isEdit ? '수정 완료' : '판매 기록 저장'),
           ),
           const SizedBox(height: 30),
         ],
       ),
     );
+  }
+
+  /// 메뉴 판매 수량 직접 입력 다이얼로그
+  Future<void> _typeQty(String menuId, String menuName, double current) async {
+    final ctrl = TextEditingController(
+        text: current > 0 ? formatQty(current) : '');
+    final v = await showDialog<double>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text('$menuName 판매 수량',
+            style:
+                const TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+        content: TextField(
+          controller: ctrl,
+          autofocus: true,
+          keyboardType: TextInputType.number,
+          inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+          style: const TextStyle(fontSize: 20),
+          decoration: const InputDecoration(hintText: '예: 47'),
+        ),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('취소', style: TextStyle(fontSize: 17))),
+          TextButton(
+            onPressed: () =>
+                Navigator.pop(ctx, double.tryParse(ctrl.text) ?? current),
+            child: const Text('확인',
+                style: TextStyle(
+                    fontSize: 17,
+                    fontWeight: FontWeight.bold,
+                    color: AppColors.primary)),
+          ),
+        ],
+      ),
+    );
+    if (v != null) setState(() => _menuSales[menuId] = v);
+    ctrl.dispose();
   }
 }
 

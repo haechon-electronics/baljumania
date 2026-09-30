@@ -85,8 +85,13 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
           ),
           IconButton(
             icon: const Icon(Icons.chevron_right_rounded, size: 30),
-            onPressed: () => setState(() =>
-                _month = DateTime(_month.year, _month.month + 1)),
+            // 미래 월로는 이동 불가 (데이터 없는 화면 방지)
+            onPressed: (_month.year < DateTime.now().year ||
+                    (_month.year == DateTime.now().year &&
+                        _month.month < DateTime.now().month))
+                ? () => setState(() =>
+                    _month = DateTime(_month.year, _month.month + 1))
+                : null,
           ),
         ],
       ),

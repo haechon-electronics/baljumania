@@ -1,5 +1,9 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
+import 'package:share_plus/share_plus.dart';
 import '../app_state.dart';
 import '../theme.dart';
 import '../notification_service.dart';
@@ -133,6 +137,13 @@ class MoreScreen extends StatelessWidget {
                   ? '켜짐 · 매일 ${app.notifyHour}시 (스마트워치 자동 연동)'
                   : '꺼짐',
               onTap: () => _notifySettings(context, app),
+            ),
+            _IosTile(
+              icon: Icons.save_alt_rounded,
+              iconBg: const Color(0xFF5856D6),
+              title: '데이터 백업/복원',
+              subtitle: '휴대폰 교체 · 분실 대비 내 데이터 지키기',
+              onTap: () => _backupRestore(context, app),
               isLast: true,
             ),
           ]),
@@ -184,6 +195,7 @@ class MoreScreen extends StatelessWidget {
 
   void _aiSettings(BuildContext context, AppState app) {
     final ctrl = TextEditingController(text: app.geminiApiKey);
+    // 시트가 닫힌 뒤 컨트롤러 해제 (누수 방지)
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -260,7 +272,7 @@ class MoreScreen extends StatelessWidget {
           ],
         ),
       ),
-    );
+    ).then((_) => ctrl.dispose());
   }
 
   void _notifySettings(BuildContext context, AppState app) {
@@ -347,6 +359,7 @@ class MoreScreen extends StatelessWidget {
 
   void _editStoreName(BuildContext context, AppState app) {
     final ctrl = TextEditingController(text: app.storeName);
+    // 다이얼로그가 닫힌 뒤 컨트롤러 해제 (누수 방지)
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -378,7 +391,185 @@ class MoreScreen extends StatelessWidget {
           ),
         ],
       ),
+    ).then((_) => ctrl.dispose());
+  }
+
+  void _backupRestore(BuildContext context, AppState app) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
+      builder: (ctx) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              const Text('데이터 백업/복원',
+                  style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
+              const SizedBox(height: 8),
+              Text(
+                '거래처 · 재고 · 발주 · 메뉴 · 판매 · 직원 기록 전부를 파일 하나로 저장하고 되살릴 수 있어요.',
+                style: TextStyle(fontSize: 15, color: Colors.grey[600]),
+              ),
+              const SizedBox(height: 20),
+              ElevatedButton.icon(
+                onPressed: () async {
+                  Navigator.pop(ctx);
+                  await _exportBackup(context, app);
+                },
+                icon: const Icon(Icons.ios_share_rounded),
+                label: const Text('백업 파일 내보내기',
+                    style:
+                        TextStyle(fontSize: 17, fontWeight: FontWeight.bold)),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.primary,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(vertical: 16),
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(14)),
+                ),
+              ),
+              const SizedBox(height: 12),
+              OutlinedButton.icon(
+                onPressed: () {
+                  Navigator.pop(ctx);
+                  _importBackup(context, app);
+                },
+                icon: const Icon(Icons.settings_backup_restore_rounded),
+                label: const Text('백업에서 복원하기',
+                    style:
+                        TextStyle(fontSize: 17, fontWeight: FontWeight.bold)),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: AppColors.primary,
+                  side: const BorderSide(color: AppColors.primary),
+                  padding: const EdgeInsets.symmetric(vertical: 16),
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(14)),
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                '복원하면 지금 기기의 데이터를 백업 내용으로 완전히 교체해요.',
+                textAlign: TextAlign.center,
+                style: TextStyle(fontSize: 13, color: Colors.grey[500]),
+              ),
+            ],
+          ),
+        ),
+      ),
     );
+  }
+
+  Future<void> _exportBackup(BuildContext context, AppState app) async {
+    try {
+      final json = app.exportBackupJson();
+      final now = DateTime.now();
+      final fileName =
+          '발주매니아_백업_${now.year}${now.month.toString().padLeft(2, '0')}${now.day.toString().padLeft(2, '0')}.json';
+      await Share.shareXFiles(
+        [
+          XFile.fromData(
+            utf8.encode(json),
+            name: fileName,
+            mimeType: 'application/json',
+          )
+        ],
+        fileNameOverrides: [fileName],
+        subject: '발주매니아 백업',
+        text: '발주매니아 데이터 백업 파일이에요. 카카오톡 나에게 보내기 등으로 보관하세요.',
+      );
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('백업 내보내기에 실패했어요: $e')));
+      }
+    }
+  }
+
+  void _importBackup(BuildContext context, AppState app) {
+    final ctrl = TextEditingController();
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('백업에서 복원',
+            style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Text(
+              '백업 파일(.json)을 메모장 등으로 열어 내용 전체를 복사한 뒤 아래에 붙여넣어주세요.',
+              style: TextStyle(fontSize: 14, color: Colors.grey[600]),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: ctrl,
+              maxLines: 5,
+              style: const TextStyle(fontSize: 13),
+              decoration: InputDecoration(
+                hintText: '{"app":"baljumania", ... }',
+                border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12)),
+                suffixIcon: IconButton(
+                  icon: const Icon(Icons.content_paste_rounded),
+                  tooltip: '붙여넣기',
+                  onPressed: () async {
+                    final clip = await Clipboard.getData('text/plain');
+                    if (clip?.text != null) ctrl.text = clip!.text!;
+                  },
+                ),
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('취소', style: TextStyle(fontSize: 17))),
+          TextButton(
+            onPressed: () async {
+              final raw = ctrl.text.trim();
+              if (raw.isEmpty) return;
+              // 덮어쓰기 최종 확인
+              final ok = await showDialog<bool>(
+                context: ctx,
+                builder: (c2) => AlertDialog(
+                  title: const Text('정말 복원할까요?'),
+                  content: const Text(
+                      '지금 기기에 있는 모든 데이터가 백업 내용으로 교체돼요. 되돌릴 수 없어요.'),
+                  actions: [
+                    TextButton(
+                        onPressed: () => Navigator.pop(c2, false),
+                        child: const Text('취소')),
+                    TextButton(
+                        onPressed: () => Navigator.pop(c2, true),
+                        child: const Text('복원',
+                            style: TextStyle(
+                                color: Colors.red,
+                                fontWeight: FontWeight.bold))),
+                  ],
+                ),
+              );
+              if (ok != true) return;
+              final err = await app.importBackupJson(raw);
+              if (ctx.mounted) Navigator.pop(ctx);
+              if (context.mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                    content: Text(err ?? '복원 완료! 데이터를 되살렸어요 ✅')));
+              }
+            },
+            child: const Text('복원하기',
+                style: TextStyle(
+                    fontSize: 17,
+                    fontWeight: FontWeight.bold,
+                    color: AppColors.primary)),
+          ),
+        ],
+      ),
+    ).then((_) => ctrl.dispose());
   }
 }
 

@@ -1,3 +1,4 @@
+import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
 import 'models.dart';
 
@@ -15,6 +16,10 @@ String formatDateKr(String isoDate) {
 }
 
 String todayIso() => DateTime.now().toIso8601String().substring(0, 10);
+
+/// 소수점 한 개만 허용하는 숫자 입력 포매터 (예: 1.2.3 입력 방지)
+TextInputFormatter decimalInputFormatter() =>
+    FilteringTextInputFormatter.allow(RegExp(r'^\d*\.?\d*$'));
 
 /// 발주 문자 자동 생성
 String buildOrderMessage({

@@ -136,7 +136,7 @@ class Employee {
     required this.id,
     required this.name,
     this.empType = 'parttime',
-    this.hourlyWage = 10030,
+    this.hourlyWage = 10320,
     this.monthlyWage = 0,
     this.phone = '',
   });
@@ -154,7 +154,7 @@ class Employee {
         id: m['id'] as String? ?? '',
         name: m['name'] as String? ?? '',
         empType: m['empType'] as String? ?? 'parttime',
-        hourlyWage: (m['hourlyWage'] as num?)?.toDouble() ?? 10030,
+        hourlyWage: (m['hourlyWage'] as num?)?.toDouble() ?? 10320,
         monthlyWage: (m['monthlyWage'] as num?)?.toDouble() ?? 0,
         phone: m['phone'] as String? ?? '',
       );

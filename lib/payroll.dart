@@ -69,15 +69,15 @@ PayrollResult calculatePayroll({
 
     case 'insured': // 4대보험 정직원 (월급제)
       grossPay = employee.monthlyWage;
-      final pension = (grossPay * 0.045).roundToDouble(); // 국민연금 4.5%
-      final health = (grossPay * 0.03545).roundToDouble(); // 건강보험
-      final longCare = (health * 0.1295).roundToDouble(); // 장기요양
+      final pension = (grossPay * 0.0475).roundToDouble(); // 국민연금 4.75% (2026)
+      final health = (grossPay * 0.03595).roundToDouble(); // 건강보험 3.595% (2026)
+      final longCare = (health * 0.1314).roundToDouble(); // 장기요양 = 건보료의 13.14% (2026)
       final unemployment = (grossPay * 0.009).roundToDouble(); // 고용보험 0.9%
       // 간이세액 근사 (소규모 근로자 기준 근사치)
       final incomeTax = _approxIncomeTax(grossPay);
       final localTax = (incomeTax * 0.1).roundToDouble();
-      deductions['국민연금 4.5%'] = pension;
-      deductions['건강보험 3.545%'] = health;
+      deductions['국민연금 4.75%'] = pension;
+      deductions['건강보험 3.595%'] = health;
       deductions['장기요양'] = longCare;
       deductions['고용보험 0.9%'] = unemployment;
       deductions['소득세(간이)'] = incomeTax;

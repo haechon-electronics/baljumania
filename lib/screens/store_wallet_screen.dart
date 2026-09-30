@@ -421,6 +421,13 @@ class _StoreWalletScreenState extends State<StoreWalletScreen> {
         ),
       ),
     );
+    // 시트가 닫힌 뒤 컨트롤러 해제 (누수 방지)
+    nameC.dispose();
+    bizC.dispose();
+    addrC.dispose();
+    ownerC.dispose();
+    phoneC.dispose();
+    bankC.dispose();
     if (mounted) setState(() {});
   }
 

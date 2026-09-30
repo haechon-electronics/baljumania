@@ -83,9 +83,40 @@ class PurchaseScreen extends StatelessWidget {
                                   fontWeight: FontWeight.bold,
                                   color: AppColors.primary)),
                           onLongPress: () async {
-                            await context
-                                .read<AppState>()
-                                .deletePurchase(p.id);
+                            final ok = await showDialog<bool>(
+                              context: context,
+                              builder: (ctx) => AlertDialog(
+                                title: const Text('기록 삭제',
+                                    style: TextStyle(
+                                        fontSize: 20,
+                                        fontWeight: FontWeight.bold)),
+                                content: Text(
+                                    '${p.source} 구매 기록(${formatWon(p.amount)})을 삭제하시겠습니까?',
+                                    style:
+                                        const TextStyle(fontSize: 16)),
+                                actions: [
+                                  TextButton(
+                                      onPressed: () =>
+                                          Navigator.pop(ctx, false),
+                                      child: const Text('취소',
+                                          style: TextStyle(
+                                              fontSize: 17))),
+                                  TextButton(
+                                      onPressed: () =>
+                                          Navigator.pop(ctx, true),
+                                      child: const Text('삭제',
+                                          style: TextStyle(
+                                              fontSize: 17,
+                                              color:
+                                                  AppColors.danger))),
+                                ],
+                              ),
+                            );
+                            if (ok == true && context.mounted) {
+                              await context
+                                  .read<AppState>()
+                                  .deletePurchase(p.id);
+                            }
                           },
                         ),
                       );
@@ -188,8 +219,7 @@ class _PurchaseEditSheetState extends State<_PurchaseEditSheet> {
                     final picked = await showDatePicker(
                       context: context,
                       initialDate: _date,
-                      firstDate: DateTime.now()
-                          .subtract(const Duration(days: 90)),
+                      firstDate: DateTime(2023, 1, 1),
                       lastDate: DateTime.now(),
                     );
                     if (picked != null) setState(() => _date = picked);

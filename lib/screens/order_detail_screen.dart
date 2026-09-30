@@ -351,10 +351,12 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
                   label: '문자 보내기',
                   onTap: () async {
                     final phone = supplier?.phone ?? '';
+                    // queryParameters는 공백을 '+'로 인코딩해 일부 문자앱에서
+                    // 본문에 '+'가 그대로 보이는 문제가 있어 직접 인코딩한다.
                     final uri = Uri(
                       scheme: 'sms',
                       path: phone,
-                      queryParameters: {'body': message},
+                      query: 'body=${Uri.encodeComponent(message)}',
                     );
                     try {
                       await launchUrl(uri);

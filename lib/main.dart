@@ -69,7 +69,8 @@ class _MainShellState extends State<MainShell> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: SafeArea(child: _screens[_index]),
+      // IndexedStack: 탭 전환 시 각 화면의 스크롤 위치·입력 상태 유지
+      body: SafeArea(child: IndexedStack(index: _index, children: _screens)),
       // iOS식 반투명 블러 탭바
       bottomNavigationBar: ClipRect(
         child: BackdropFilter(

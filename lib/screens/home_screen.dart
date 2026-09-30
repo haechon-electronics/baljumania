@@ -257,7 +257,13 @@ class HomeScreen extends StatelessWidget {
                           Color(0xFF1D4ED8)
                         ],
                         onTap: () {
-                          if (pending.isNotEmpty) {
+                          if (pending.isEmpty) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                  content: Text('입고 대기 중인 발주가 없습니다',
+                                      style: TextStyle(fontSize: 16))),
+                            );
+                          } else if (pending.length == 1) {
                             Navigator.push(
                               context,
                               MaterialPageRoute(
@@ -265,10 +271,61 @@ class HomeScreen extends StatelessWidget {
                                       orderId: pending.first.id)),
                             );
                           } else {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(
-                                  content: Text('입고 대기 중인 발주가 없습니다',
-                                      style: TextStyle(fontSize: 16))),
+                            // 여러 건이면 어떤 발주인지 선택
+                            showModalBottomSheet(
+                              context: context,
+                              shape: const RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.vertical(
+                                      top: Radius.circular(20))),
+                              builder: (ctx) => SafeArea(
+                                child: Column(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    const Padding(
+                                      padding: EdgeInsets.all(16),
+                                      child: Text('입고 확인할 발주 선택',
+                                          style: TextStyle(
+                                              fontSize: 19,
+                                              fontWeight:
+                                                  FontWeight.bold)),
+                                    ),
+                                    ...pending.take(6).map(
+                                          (o) => ListTile(
+                                            leading: Icon(
+                                                o.isOverdue
+                                                    ? Icons
+                                                        .warning_amber_rounded
+                                                    : Icons
+                                                        .inventory_2_rounded,
+                                                color: o.isOverdue
+                                                    ? AppColors.danger
+                                                    : AppColors.primary),
+                                            title: Text(o.supplierName,
+                                                style: const TextStyle(
+                                                    fontSize: 17,
+                                                    fontWeight:
+                                                        FontWeight.w600)),
+                                            subtitle: Text(
+                                                '${formatDateKr(o.orderDate)} · ${o.lines.length}개 품목${o.isOverdue ? ' · 예정일 지남!' : ''}',
+                                                style: const TextStyle(
+                                                    fontSize: 14)),
+                                            onTap: () {
+                                              Navigator.pop(ctx);
+                                              Navigator.push(
+                                                context,
+                                                MaterialPageRoute(
+                                                    builder: (_) =>
+                                                        OrderDetailScreen(
+                                                            orderId:
+                                                                o.id)),
+                                              );
+                                            },
+                                          ),
+                                        ),
+                                    const SizedBox(height: 8),
+                                  ],
+                                ),
+                              ),
                             );
                           }
                         },

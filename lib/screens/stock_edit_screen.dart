@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import '../app_state.dart';
 import '../models.dart';
 import '../theme.dart';
+import '../utils.dart';
 
 class StockEditScreen extends StatefulWidget {
   final StockItem? item;
@@ -186,10 +187,7 @@ class _StockEditScreenState extends State<StockEditScreen> {
                       controller: _qtyCtrl,
                       keyboardType: const TextInputType.numberWithOptions(
                           decimal: true),
-                      inputFormatters: [
-                        FilteringTextInputFormatter.allow(
-                            RegExp(r'[\d.]')),
-                      ],
+                      inputFormatters: [decimalInputFormatter()],
                       style: const TextStyle(fontSize: 18),
                       decoration: const InputDecoration(hintText: '0'),
                     ),
@@ -226,9 +224,7 @@ class _StockEditScreenState extends State<StockEditScreen> {
             controller: _minQtyCtrl,
             keyboardType:
                 const TextInputType.numberWithOptions(decimal: true),
-            inputFormatters: [
-              FilteringTextInputFormatter.allow(RegExp(r'[\d.]')),
-            ],
+            inputFormatters: [decimalInputFormatter()],
             style: const TextStyle(fontSize: 18),
             decoration: const InputDecoration(hintText: '예: 5'),
           ),

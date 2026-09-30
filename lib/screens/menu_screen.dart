@@ -179,6 +179,10 @@ class _RecipePasteScreenState extends State<RecipePasteScreen> {
     );
     // 판매가 입력 다이얼로그
     final priceCtrl = TextEditingController();
+    if (!mounted) {
+      priceCtrl.dispose();
+      return;
+    }
     final price = await showDialog<double>(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -210,6 +214,7 @@ class _RecipePasteScreenState extends State<RecipePasteScreen> {
       ),
     );
     menu.price = price ?? 0;
+    priceCtrl.dispose();
     if (!mounted) return;
     await context.read<AppState>().saveMenu(menu);
     if (mounted) {
@@ -251,7 +256,7 @@ class _RecipePasteScreenState extends State<RecipePasteScreen> {
           ElevatedButton.icon(
             onPressed: _analyze,
             icon: const Icon(Icons.auto_awesome_rounded, size: 24),
-            label: const Text('AI 분석하기'),
+            label: const Text('자동 분석하기'),
           ),
           if (_parsed != null) ...[
             const SizedBox(height: 20),
@@ -444,6 +449,30 @@ class _MenuEditScreenState extends State<MenuEditScreen> {
             IconButton(
               icon: const Icon(Icons.delete_outline_rounded, size: 26),
               onPressed: () async {
+                final ok = await showDialog<bool>(
+                  context: context,
+                  builder: (ctx) => AlertDialog(
+                    title: const Text('메뉴 삭제',
+                        style: TextStyle(
+                            fontSize: 20, fontWeight: FontWeight.bold)),
+                    content: Text(
+                        '"${widget.menu!.name}" 메뉴를 삭제하시겠습니까?\n레시피도 함께 삭제되며 복구할 수 없습니다.',
+                        style: const TextStyle(fontSize: 16)),
+                    actions: [
+                      TextButton(
+                          onPressed: () => Navigator.pop(ctx, false),
+                          child: const Text('취소',
+                              style: TextStyle(fontSize: 17))),
+                      TextButton(
+                          onPressed: () => Navigator.pop(ctx, true),
+                          child: const Text('삭제',
+                              style: TextStyle(
+                                  fontSize: 17,
+                                  color: AppColors.danger))),
+                    ],
+                  ),
+                );
+                if (ok != true || !context.mounted) return;
                 await app.deleteMenu(widget.menu!.id);
                 if (context.mounted) Navigator.pop(context);
               },

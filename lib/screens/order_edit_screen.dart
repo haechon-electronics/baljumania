@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import '../app_state.dart';
 import '../models.dart';
@@ -289,6 +290,67 @@ class _LineEditor extends StatelessWidget {
   const _LineEditor(
       {required this.line, required this.onChanged, required this.onDelete});
 
+  /// 수량·단가 직접 입력 다이얼로그
+  Future<void> _editQtyPrice(BuildContext context) async {
+    final qtyCtrl = TextEditingController(text: formatQty(line.qty));
+    final priceCtrl = TextEditingController(
+        text: line.price > 0 ? line.price.toInt().toString() : '');
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(line.itemName,
+            style:
+                const TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextField(
+              controller: qtyCtrl,
+              autofocus: true,
+              keyboardType:
+                  const TextInputType.numberWithOptions(decimal: true),
+              inputFormatters: [decimalInputFormatter()],
+              style: const TextStyle(fontSize: 18),
+              decoration: InputDecoration(
+                  labelText: '수량 (${line.unit})', hintText: '예: 3'),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: priceCtrl,
+              keyboardType: TextInputType.number,
+              inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+              style: const TextStyle(fontSize: 18),
+              decoration: const InputDecoration(
+                  labelText: '단가 (원)', hintText: '예: 12000'),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('취소', style: TextStyle(fontSize: 17))),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('확인',
+                style: TextStyle(
+                    fontSize: 17,
+                    fontWeight: FontWeight.bold,
+                    color: AppColors.primary)),
+          ),
+        ],
+      ),
+    );
+    if (ok == true) {
+      final qty = double.tryParse(qtyCtrl.text) ?? line.qty;
+      final price = double.tryParse(priceCtrl.text) ?? line.price;
+      if (qty > 0) line.qty = qty;
+      line.price = price;
+      onChanged();
+    }
+    qtyCtrl.dispose();
+    priceCtrl.dispose();
+  }
+
   @override
   Widget build(BuildContext context) {
     return Card(
@@ -325,11 +387,19 @@ class _LineEditor extends StatelessWidget {
                 ),
                 SizedBox(
                   width: 80,
-                  child: Text(
-                    '${formatQty(line.qty)}${line.unit}',
-                    textAlign: TextAlign.center,
-                    style: const TextStyle(
-                        fontSize: 19, fontWeight: FontWeight.bold),
+                  // 수량 탭 → 직접 입력
+                  child: InkWell(
+                    onTap: () => _editQtyPrice(context),
+                    borderRadius: BorderRadius.circular(8),
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 6),
+                      child: Text(
+                        '${formatQty(line.qty)}${line.unit}',
+                        textAlign: TextAlign.center,
+                        style: const TextStyle(
+                            fontSize: 19, fontWeight: FontWeight.bold),
+                      ),
+                    ),
                   ),
                 ),
                 _RoundIconBtn(
@@ -340,18 +410,32 @@ class _LineEditor extends StatelessWidget {
                   },
                 ),
                 const Spacer(),
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.end,
-                  children: [
-                    Text('단가 ${formatWon(line.price)}',
-                        style: const TextStyle(
-                            fontSize: 14, color: AppColors.textGrey)),
-                    Text(formatWon(line.total),
-                        style: const TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
-                            color: AppColors.primary)),
-                  ],
+                // 단가 영역 탭 → 수량/단가 직접 수정
+                InkWell(
+                  onTap: () => _editQtyPrice(context),
+                  borderRadius: BorderRadius.circular(8),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    children: [
+                      Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(Icons.edit_rounded,
+                              size: 13, color: AppColors.textGrey),
+                          const SizedBox(width: 3),
+                          Text('단가 ${formatWon(line.price)}',
+                              style: const TextStyle(
+                                  fontSize: 14,
+                                  color: AppColors.textGrey)),
+                        ],
+                      ),
+                      Text(formatWon(line.total),
+                          style: const TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
+                              color: AppColors.primary)),
+                    ],
+                  ),
                 ),
               ],
             ),

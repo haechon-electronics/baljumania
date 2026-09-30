@@ -51,8 +51,13 @@ class _StaffScreenState extends State<StaffScreen> {
           ),
           IconButton(
             icon: const Icon(Icons.chevron_right_rounded, size: 30),
-            onPressed: () => setState(() =>
-                _month = DateTime(_month.year, _month.month + 1)),
+            // 미래 월로는 이동 불가 (데이터 없는 화면 방지)
+            onPressed: (_month.year < DateTime.now().year ||
+                    (_month.year == DateTime.now().year &&
+                        _month.month < DateTime.now().month))
+                ? () => setState(() =>
+                    _month = DateTime(_month.year, _month.month + 1))
+                : null,
           ),
         ],
       ),
@@ -361,7 +366,7 @@ class _EmployeeEditSheetState extends State<_EmployeeEditSheet> {
     }
     final wage = double.tryParse(_wageCtrl.text) ?? 0;
     // 최저시급 체크
-    if (_empType != 'insured' && wage > 0 && wage < 10030) {
+    if (_empType != 'insured' && wage > 0 && wage < 10320) {
       final ok = await showDialog<bool>(
         context: context,
         builder: (ctx) => AlertDialog(
@@ -369,7 +374,7 @@ class _EmployeeEditSheetState extends State<_EmployeeEditSheet> {
               style:
                   TextStyle(fontSize: 19, fontWeight: FontWeight.bold)),
           content: const Text(
-              '입력한 시급이 2026년 최저시급(10,030원)보다 낮습니다.\n그래도 저장하시겠습니까?',
+              '입력한 시급이 2026년 최저시급(10,320원)보다 낮습니다.\n그래도 저장하시겠습니까?',
               style: TextStyle(fontSize: 16)),
           actions: [
             TextButton(
@@ -392,7 +397,7 @@ class _EmployeeEditSheetState extends State<_EmployeeEditSheet> {
     if (_empType == 'insured') {
       emp.monthlyWage = wage;
     } else {
-      emp.hourlyWage = wage > 0 ? wage : 10030;
+      emp.hourlyWage = wage > 0 ? wage : 10320;
     }
     await app.saveEmployee(emp);
     if (mounted) Navigator.pop(context);
@@ -419,6 +424,33 @@ class _EmployeeEditSheetState extends State<_EmployeeEditSheet> {
                     icon: const Icon(Icons.delete_outline_rounded,
                         color: AppColors.danger, size: 26),
                     onPressed: () async {
+                      final ok = await showDialog<bool>(
+                        context: context,
+                        builder: (ctx) => AlertDialog(
+                          title: const Text('직원 삭제',
+                              style: TextStyle(
+                                  fontSize: 20,
+                                  fontWeight: FontWeight.bold)),
+                          content: Text(
+                              '${widget.employee!.name} 직원을 삭제하시겠습니까?\n근무 기록은 급여 계산에서 제외됩니다.',
+                              style: const TextStyle(fontSize: 16)),
+                          actions: [
+                            TextButton(
+                                onPressed: () =>
+                                    Navigator.pop(ctx, false),
+                                child: const Text('취소',
+                                    style: TextStyle(fontSize: 17))),
+                            TextButton(
+                                onPressed: () =>
+                                    Navigator.pop(ctx, true),
+                                child: const Text('삭제',
+                                    style: TextStyle(
+                                        fontSize: 17,
+                                        color: AppColors.danger))),
+                          ],
+                        ),
+                      );
+                      if (ok != true || !context.mounted) return;
                       await context
                           .read<AppState>()
                           .deleteEmployee(widget.employee!.id);
@@ -504,9 +536,12 @@ class _WorkLogSheetState extends State<_WorkLogSheet> {
   double _end = 22;
 
   String _hourLabel(double h) {
-    final hour = h.floor();
-    final min = ((h - hour) * 60).round();
-    return '$hour:${min.toString().padLeft(2, '0')}';
+    final isNextDay = h >= 24;
+    final hh = isNextDay ? h - 24 : h;
+    final hour = hh.floor();
+    final min = ((hh - hour) * 60).round();
+    final label = '$hour:${min.toString().padLeft(2, '0')}';
+    return isNextDay ? '익일 $label' : label;
   }
 
   @override
@@ -538,8 +573,7 @@ class _WorkLogSheetState extends State<_WorkLogSheet> {
                       final picked = await showDatePicker(
                         context: context,
                         initialDate: _date,
-                        firstDate: DateTime.now()
-                            .subtract(const Duration(days: 90)),
+                        firstDate: DateTime(2023, 1, 1),
                         lastDate: DateTime.now(),
                       );
                       if (picked != null) {
@@ -582,7 +616,8 @@ class _WorkLogSheetState extends State<_WorkLogSheet> {
                     style: const TextStyle(
                         fontSize: 16, color: AppColors.textDark),
                     items: [
-                      for (double h = 6; h <= 24; h += 0.5)
+                      // 야간 마감 지원: 익일 새벽 6시까지 (24~30 = 익일 0~6시)
+                      for (double h = 6; h <= 30; h += 0.5)
                         DropdownMenuItem(
                             value: h, child: Text(_hourLabel(h))),
                     ],
@@ -759,7 +794,7 @@ class _WorkMessageScreenState extends State<WorkMessageScreen> {
           ElevatedButton.icon(
             onPressed: _analyze,
             icon: const Icon(Icons.auto_awesome_rounded, size: 24),
-            label: const Text('AI 분석하기'),
+            label: const Text('자동 분석하기'),
           ),
           if (_analyzed) ...[
             const SizedBox(height: 20),
