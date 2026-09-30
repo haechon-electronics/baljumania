@@ -60,5 +60,8 @@
 	<array>
 		<string>UIInterfaceOrientationPortrait</string>
 	</array>
+	<!-- 암호화 신고: HTTPS 표준 암호화만 사용 (면제) — TestFlight 'Missing Compliance' 방지 -->
+	<key>ITSAppUsesNonExemptEncryption</key>
+	<false/>
 </dict>
 </plist>
