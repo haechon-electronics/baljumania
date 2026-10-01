@@ -30,25 +30,30 @@
   - Apple Distribution 인증서 3개 상한 → 새 키 생성 불가, 반드시 기존 rawgram 개인키 재사용
 - 웹 미리보기: `flutter build web --release` → `build/web` 정적 서빙 (포트 5060)
 
-## 3. 이번 전수조사에서 발견·수정한 버그
-| # | 심각도 | 내용 | 상태 |
-|---|---|---|---|
-| 1 | **치명** | 최초 설치 실행 시 샘플 데이터가 Hive에 시드만 되고 메모리 목록에 로드되지 않아 **모든 탭이 빈 화면**으로 시작 (재실행해야 보임). `app_state.dart init()` 시드 후 `_loadAll()` 누락 | **수정 완료** (이번 커밋) |
+## 3. 이번 전수조사에서 발견·수정한 버그 (전부 실제 코드 수정, 커밋 91cd4c9)
+| # | 심각도 | 내용 | 수정 위치 | 검증 |
+|---|---|---|---|---|
+| 0 | **치명** | 최초 실행 시 시드 후 `_loadAll()` 누락 → 모든 탭 빈 화면 | `app_state.dart init()` | 스크린샷 |
+| 0-1 | **치명** | `_newId()` 마이크로초 충돌로 웹에서 시드 5개 중 3개만 저장 | `_newId()` seq+random | 스크린샷(5개 표시) |
+| 1 | 높음 | 스캔 생성 라인(itemId '') 입고 시 재고 미반영 | `_applyReceivedLine` 신규 StockItem 자동 생성, `receiveOrderLine→bool`, `receiveAllLines→int`, 스낵바 안내 | 스크린샷("두부 입고 완료 · 재고 +10모") |
+| 2 | 중 | 재고 삭제 참조 경고 없음 | `stockUsage()` + stock_screen/stock_edit_screen 삭제 다이얼로그 | 코드·analyze |
+| 3 | 중 | 거래처 즉시 삭제 | `supplierItemCount()` + 확인 다이얼로그 | 스크린샷("연결된 품목 3개") |
+| 4 | 중 | 간편구매 수정 불가 | `purchase_screen.dart` 탭→편집 시트 | 코드·analyze |
+| 5 | 중 | 발주 수정 불가 | `order_edit_screen.dart editOrder` 모드, `updateOrder()`, 입고된 라인 잠금 | 스크린샷(수정 화면 프리필) |
+| 6 | 높음 | `deleteSale` 재고 복원 안 함 | `_applySaleStock(sale, sign:1)` | 코드 |
+| 7 | 중 | 백업 복원 붙여넣기만 | `file_picker` 파일 선택 복원 + 붙여넣기 폴백 | 스크린샷(시트 버튼 표시) |
+| 8 | 높음 | iOS 알림 미초기화 | Darwin init/permissions/details | 실기기 필요 |
+| 9 | 중 | AdMob iOS ID | `ad_config.dart` 플랫폼 분기(iOS는 Google 테스트 ID). **실제 iOS 광고단위/앱 ID는 AdMob 콘솔에서 발급 후 `ad_config.dart`·`Info.plist` 교체 필요** | 코드 |
+| 10 | 낮음 | OCR 실패 원인 안내 없음 | `scan_service.lastFailReason/failMessage()` → scan/smart_scan 화면 | 코드 |
+| 11 | 중 | 이름 contains 오매칭 | `_findStockByName` 정확→공백제거→(길이≥2 & 후보 1개)만 부분일치 | 코드 |
+| 12 | 낮음 | 배경색 미지정 | store_wallet/tax_export `backgroundColor` | 코드 |
+| + | UX | 홈 지표 탭→탭 이동(`MainShell.tabRequest`), 재고/품목선택 검색(8개 초과 시), 재고 롱프레스 수량 조정, 문자 전송 시 전화번호 없음 다이얼로그, 근무시간 24시 이상 "익일" 표기, 발주일 과거 선택 가드 | 각 화면 | 지표 탭·수량조정 스크린샷 |
 
-## 4. 발견했으나 미수정 — 우선순위 순 (다음 작업자 TODO)
-### A. 버그/결함 (실측 코드 근거)
-1. **발주 라인 itemId 빈값 처리** — 구매메모 스캔 → 재고에 없는 품목은 `OrderLine(itemId:'')`로 저장됨. `receiveOrderLine`에서 `stockById('')`가 null이라 입고해도 재고 미반영. → 입고 시 신규 StockItem 자동 생성 필요 (`app_state.dart receiveOrderLine/receiveAllLines`).
-2. **품목 삭제 시 참조 무결성 없음** — 재고 삭제 후 기존 발주 라인·레시피는 이름만 남음. 삭제 전 "발주 N건에 사용 중" 경고 권장.
-3. **거래처 삭제 확인 다이얼로그 없음** (`suppliers_screen.dart` 휴지통 아이콘 즉시 삭제). 다른 화면은 전부 확인창 있음.
-4. **간편구매 수정 불가** — 길게 눌러 삭제만 가능, 탭 수정 화면 없음 (`purchase_screen.dart`).
-5. **발주 수정 불가** — 등록 후 품목/수량 변경 불가, 삭제 후 재등록해야 함.
-6. **판매 수정 시 재고 복원 로직** — `updateSale`은 복원→재차감 하지만 `deleteSale`은 **재고 복원 안 함** (`app_state.dart:581`). 삭제 시 `_applySaleStock(sale, sign: 1)` 호출 필요.
-7. **백업 복원 UX** — JSON 전체를 텍스트 붙여넣기 방식. 수만 자 클립보드 붙여넣기 실패 사례 많음. `file_picker`로 파일 선택 방식 추가 권장 (웹 호환 패키지).
-8. **iOS 알림 미초기화** — `notification_service.dart`가 `InitializationSettings(android: ...)`만 설정. iOS에서 `DarwinInitializationSettings` 없어서 iOS 알림 전부 무음. TestFlight 전 반드시 추가.
-9. **AdMob iOS 앱 ID** — Info.plist `GADApplicationIdentifier` 실측 필요 (테스트 ID면 심사 거절 가능).
-10. **ML Kit 한국어 모델 첫 사용 시 다운로드 대기** — 오프라인 첫 스캔 실패를 사용자에게 안내 없음.
-11. **`_findStockByName` contains 매칭** — "파"가 "대파/쪽파/양파" 전부 매칭 → 레시피 차감이 엉뚱한 품목에 들어갈 수 있음. 정확일치 우선 후 contains는 길이 ≥2 조건 추가 권장.
-12. **더보기 → 서류지갑/세무/스캔 화면은 `backgroundColor` 미지정**으로 다른 화면과 배경색 미세 불일치.
+## 4. 다음 작업자 TODO
+### A. 남은 확인 항목
+1. iOS 실기기: 알림 권한/표시(#8), ML Kit 한국어 모델 첫 다운로드.
+2. AdMob 실제 iOS 앱 ID·배너 ID 발급 후 교체(#9).
+3. 미촬영 재검증: 간편구매 수정 시트, 재고 삭제 다이얼로그 문구, 발주 수정 저장 경로, 문자 전화번호 없음 다이얼로그(전화번호 없는 거래처 필요), 품목 9개 이상 시 검색창. (코드는 analyze 통과·빌드 성공 상태)
 
 ### B. 시장조사 기반 추가 기능 제안 (경쟁앱 실측: 재고요 19,900~29,900원/월, 주담 9,900원/월, MIRI, 도도카트, 일기월장, 캐시노트)
 경쟁앱이 전부 갖고 있고 발주매니아에 **없는** 것:
