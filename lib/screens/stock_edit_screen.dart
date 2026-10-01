@@ -109,14 +109,20 @@ class _StockEditScreenState extends State<StockEditScreen> {
           if (isEdit)
             IconButton(
               icon: const Icon(Icons.delete_outline_rounded, size: 26),
+              tooltip: '품목 삭제',
               onPressed: () async {
+                final usage =
+                    context.read<AppState>().stockUsage(widget.item!);
                 final ok = await showDialog<bool>(
                   context: context,
                   builder: (ctx) => AlertDialog(
                     title: const Text('품목 삭제',
                         style: TextStyle(
                             fontSize: 20, fontWeight: FontWeight.bold)),
-                    content: Text('${widget.item!.name}을(를) 삭제하시겠습니까?',
+                    content: Text(
+                        '${widget.item!.name}을(를) 삭제하시겠습니까?'
+                        '${usage.pendingOrders > 0 ? '\n\n• 입고 대기 발주 ${usage.pendingOrders}건에 들어 있어요. 삭제해도 입고 시 같은 이름으로 자동 재등록됩니다.' : ''}'
+                        '${usage.menus > 0 ? '\n• 레시피 ${usage.menus}개 메뉴에서 쓰고 있어요. 삭제하면 그 메뉴 원가 계산에서 빠집니다.' : ''}',
                         style: const TextStyle(fontSize: 17)),
                     actions: [
                       TextButton(

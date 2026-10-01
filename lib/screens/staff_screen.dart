@@ -742,9 +742,12 @@ class _WorkMessageScreenState extends State<WorkMessageScreen> {
   }
 
   String _hourLabel(double h) {
-    final hour = h.floor();
-    final min = ((h - hour) * 60).round();
-    return '$hour:${min.toString().padLeft(2, '0')}';
+    final isNextDay = h >= 24;
+    final hh = isNextDay ? h - 24 : h;
+    final hour = hh.floor();
+    final min = ((hh - hour) * 60).round();
+    final label = '$hour:${min.toString().padLeft(2, '0')}';
+    return isNextDay ? '익일 $label' : label;
   }
 
   @override

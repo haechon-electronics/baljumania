@@ -37,6 +37,7 @@ class _TaxExportScreenState extends State<TaxExportScreen> {
     final app = context.watch<AppState>();
 
     return Scaffold(
+      backgroundColor: AppColors.background,
       appBar: AppBar(title: const Text('세무자료 내보내기')),
       body: ListView(
         padding: const EdgeInsets.all(16),

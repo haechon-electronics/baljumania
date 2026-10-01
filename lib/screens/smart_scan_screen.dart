@@ -60,8 +60,7 @@ class _SmartScanScreenState extends State<SmartScanScreen> {
         if (ocr.trim().isEmpty) {
           setState(() {
             _scanning = false;
-            _lastFail = 'AI 서버 응답이 없고 기본인식도 글자를 찾지 못했어요.\n'
-                '· 인터넷 연결을 확인해주세요\n'
+            _lastFail = '${svc.failMessage()}\n\n'
                 '· 문서가 화면에 꽉 차게, 초점을 맞춰서 찍어주세요\n'
                 '· 그림자 없이 밝은 곳에서 찍으면 더 잘 읽혀요';
           });

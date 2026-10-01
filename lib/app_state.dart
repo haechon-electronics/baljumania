@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:math';
 
 import 'package:flutter/foundation.dart';
 import 'package:hive_flutter/hive_flutter.dart';
@@ -187,7 +188,18 @@ class AppState extends ChangeNotifier {
     workLogs.sort((a, b) => b.date.compareTo(a.date));
   }
 
-  String _newId() => DateTime.now().microsecondsSinceEpoch.toString();
+  static final _rnd = Random();
+  static int _seq = 0;
+
+  /// 고유 ID 생성. 시간만 쓰면 웹(밀리초 정밀도)이나 일괄 저장 시
+  /// 같은 ID가 나와 서로 덮어쓰는 버그가 있어(실측: 샘플 5개 중 3개 유실)
+  /// 순번 + 난수를 붙인다.
+  String _newId() {
+    _seq = (_seq + 1) % 1000;
+    final t = DateTime.now().microsecondsSinceEpoch;
+    final r = _rnd.nextInt(0xFFFFFF).toRadixString(36);
+    return '$t-${_seq.toString().padLeft(3, '0')}-$r';
+  }
 
   // ===== 설정 =====
   Future<void> setStoreName(String name) async {
@@ -268,22 +280,50 @@ class AppState extends ChangeNotifier {
     notifyListeners();
   }
 
-  /// 발주 라인 입고 처리 (재고 증가 + 단가 갱신)
-  Future<void> receiveOrderLine(PurchaseOrder order, int lineIndex) async {
+  /// 입고 라인 1개를 재고에 반영.
+  /// 재고에 없는 품목(스캔으로 만든 신규 품목 등, itemId 비어있거나 삭제된 경우)은
+  /// 품목을 자동 생성해서 입고 수량이 사라지지 않게 한다. (생성했으면 true)
+  Future<bool> _applyReceivedLine(OrderLine line, PurchaseOrder order) async {
+    StockItem? item = stockById(line.itemId);
+    // id로 못 찾으면 이름으로 한 번 더 (삭제 후 같은 이름으로 재등록한 경우)
+    item ??= _findStockByName(line.itemName);
+    bool created = false;
+    if (item == null) {
+      if (line.itemName.trim().isEmpty) return false;
+      item = StockItem(
+        id: _newId(),
+        name: line.itemName.trim(),
+        unit: line.unit.isNotEmpty ? line.unit : '개',
+        quantity: 0,
+        lastPrice: line.price,
+        prevPrice: line.price,
+        supplierId: order.supplierId,
+        lastOrderDate: order.orderDate,
+      );
+      created = true;
+    }
+    // 라인에 실제 품목 id 연결 (다음부터는 id로 바로 찾기)
+    line.itemId = item.id;
+    item.quantity += line.qty;
+    if (line.price > 0 && line.price != item.lastPrice) {
+      item.prevPrice = item.lastPrice;
+      item.lastPrice = line.price;
+    }
+    await _stockBox.put(item.id, item.toMap());
+    if (created) {
+      // 새 품목을 메모리 목록에도 즉시 반영 (같은 발주 안 다음 라인이 중복 생성하지 않게)
+      stockItems.add(item);
+    }
+    return created;
+  }
+
+  /// 발주 라인 입고 처리 (재고 증가 + 단가 갱신). 신규 품목이 생성됐으면 true 반환.
+  Future<bool> receiveOrderLine(PurchaseOrder order, int lineIndex) async {
     final line = order.lines[lineIndex];
-    if (line.received) return;
+    if (line.received) return false;
     line.received = true;
 
-    // 재고 증가 + 단가 이력
-    final item = stockById(line.itemId);
-    if (item != null) {
-      item.quantity += line.qty;
-      if (line.price > 0 && line.price != item.lastPrice) {
-        item.prevPrice = item.lastPrice;
-        item.lastPrice = line.price;
-      }
-      await _stockBox.put(item.id, item.toMap());
-    }
+    final created = await _applyReceivedLine(line, order);
 
     // 발주 상태 갱신
     final allReceived = order.lines.every((l) => l.received);
@@ -297,36 +337,38 @@ class AppState extends ChangeNotifier {
     _loadAll();
     notifyListeners();
     rescheduleNotifications();
+    return created;
   }
 
   /// 전체 입고 처리 (일괄 처리 — 라인마다 리로드/알림 재예약하지 않음)
-  Future<void> receiveAllLines(PurchaseOrder order) async {
+  /// 자동 생성된 신규 품목 수를 반환.
+  Future<int> receiveAllLines(PurchaseOrder order) async {
     // 저장소 기준 최신 발주를 다시 읽어 stale 객체 문제 방지
     final raw = _orderBox.get(order.id);
     final fresh =
         raw is Map ? PurchaseOrder.fromMap(raw) : order;
 
     bool changed = false;
+    int createdCount = 0;
     for (final line in fresh.lines) {
       if (line.received) continue;
       line.received = true;
       changed = true;
-
-      // 재고 증가 + 단가 이력
-      final item = stockById(line.itemId);
-      if (item != null) {
-        item.quantity += line.qty;
-        if (line.price > 0 && line.price != item.lastPrice) {
-          item.prevPrice = item.lastPrice;
-          item.lastPrice = line.price;
-        }
-        await _stockBox.put(item.id, item.toMap());
-      }
+      if (await _applyReceivedLine(line, fresh)) createdCount++;
     }
-    if (!changed) return;
+    if (!changed) return 0;
 
     fresh.status = 'done';
     await _orderBox.put(fresh.id, fresh.toMap());
+    _loadAll();
+    notifyListeners();
+    rescheduleNotifications();
+    return createdCount;
+  }
+
+  /// 발주 수정 (입고 전 라인만 변경 가능 — 이미 입고된 라인은 호출쪽에서 보존해서 넘김)
+  Future<void> updateOrder(PurchaseOrder order) async {
+    await _orderBox.put(order.id, order.toMap());
     _loadAll();
     notifyListeners();
     rescheduleNotifications();
@@ -524,19 +566,45 @@ class AppState extends ChangeNotifier {
     return cost;
   }
 
+  /// 재료명 ↔ 재고 품목 매칭 (오매칭 방지 우선 순서)
+  /// 1) 정확 일치  2) 공백 제거 일치  3) 부분 일치는 2글자 이상 + 후보가 딱 1개일 때만
+  /// (예: "파" → 대파/쪽파/양파 여러 개면 매칭 안 함 → 엉뚱한 재고 차감 방지)
   StockItem? _findStockByName(String name) {
     final n = name.trim();
-    try {
-      return stockItems.firstWhere((s) => s.name == n);
-    } catch (_) {
-      try {
-        return stockItems
-            .firstWhere((s) => s.name.contains(n) || n.contains(s.name));
-      } catch (_) {
-        return null;
-      }
+    if (n.isEmpty) return null;
+    for (final s in stockItems) {
+      if (s.name == n) return s;
     }
+    final nc = n.replaceAll(' ', '');
+    for (final s in stockItems) {
+      if (s.name.replaceAll(' ', '') == nc) return s;
+    }
+    if (nc.length < 2) return null;
+    final partial = stockItems.where((s) {
+      final sc = s.name.replaceAll(' ', '');
+      return sc.length >= 2 && (sc.contains(nc) || nc.contains(sc));
+    }).toList();
+    return partial.length == 1 ? partial.first : null;
   }
+
+  /// 재료명으로 재고 찾기 (화면용 공개)
+  StockItem? findStockByName(String name) => _findStockByName(name);
+
+  /// 품목이 사용 중인 곳 집계 (삭제 경고용): 미완료 발주 수, 레시피 포함 메뉴 수
+  ({int pendingOrders, int menus}) stockUsage(StockItem item) {
+    final pending = orders
+        .where((o) =>
+            o.status != 'done' && o.lines.any((l) => l.itemId == item.id))
+        .length;
+    final menuCount = menus
+        .where((m) => m.recipe.any((r) => _findStockByName(r.name)?.id == item.id))
+        .length;
+    return (pendingOrders: pending, menus: menuCount);
+  }
+
+  /// 거래처에 연결된 품목 수 (삭제 경고용)
+  int supplierItemCount(String supplierId) =>
+      stockItems.where((s) => s.supplierId == supplierId).length;
 
   // ===== 판매 기록 =====
   Future<void> saveSale(SaleRecord sale, {bool deductStock = true}) async {
@@ -580,7 +648,12 @@ class AppState extends ChangeNotifier {
     }
   }
 
+  /// 판매 기록 삭제: 레시피로 차감됐던 재고를 먼저 복원한 뒤 삭제
   Future<void> deleteSale(String id) async {
+    final raw = _saleBox.get(id);
+    if (raw is Map) {
+      await _applySaleStock(SaleRecord.fromMap(raw), sign: 1);
+    }
     await _saleBox.delete(id);
     _loadAll();
     notifyListeners();

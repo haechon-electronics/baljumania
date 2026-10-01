@@ -25,6 +25,22 @@ class ScanService {
   /// AI 정밀인식 사용 가능 여부 — 키가 내장되어 있으므로 항상 켜짐 (무제한)
   bool get aiEnabled => true;
 
+  /// 마지막 인식 실패 원인 (화면 안내용). null이면 정상.
+  /// 'network' = AI 서버 연결 실패, 'ocrModel' = ML Kit 한글 모델 미준비/실패, 'empty' = 글자 없음
+  String? lastFailReason;
+
+  /// 실패 원인을 사용자 문구로
+  String failMessage() {
+    switch (lastFailReason) {
+      case 'network':
+        return '인터넷 연결이 불안정해 AI 인식을 못 했어요. 와이파이/데이터를 확인하고 다시 시도해 주세요.';
+      case 'ocrModel':
+        return '기본 인식(한글 모델)이 아직 준비 중이거나 실패했어요. 처음 사용 시 인터넷에서 모델을 내려받으니 잠시 후 다시 찍어 주세요.';
+      default:
+        return '글자를 인식하지 못했어요. 밝은 곳에서 문서가 화면에 꿉 차게, 초점을 맞춰 다시 찍어 주세요.';
+    }
+  }
+
   String get _effectiveKey =>
       hasUserKey ? geminiApiKey.trim() : EmbeddedGeminiKey.value;
 
@@ -46,8 +62,18 @@ class ScanService {
   Future<String> recognizeText(XFile image) async {
     if (kIsWeb) return '';
     final korean = await _runOcr(image, TextRecognitionScript.korean);
-    if (korean.trim().isNotEmpty) return korean;
-    return _runOcr(image, TextRecognitionScript.latin);
+    if (korean.trim().isNotEmpty) {
+      lastFailReason = null;
+      return korean;
+    }
+    final latin = await _runOcr(image, TextRecognitionScript.latin);
+    if (latin.trim().isNotEmpty) {
+      lastFailReason = null;
+      return latin;
+    }
+    // 둘 다 빈 결과: 예외가 있었으면 모델 문제, 아니면 사진에 글자 없음
+    lastFailReason ??= 'empty';
+    return '';
   }
 
   Future<String> _runOcr(XFile image, TextRecognitionScript script) async {
@@ -59,6 +85,7 @@ class ScanService {
       return result.text;
     } catch (e) {
       if (kDebugMode) debugPrint('OCR($script) 실패: $e');
+      lastFailReason = 'ocrModel';
       return '';
     } finally {
       await recognizer?.close();
@@ -69,6 +96,7 @@ class ScanService {
   /// [task]에 따라 구조화된 JSON을 돌려받음
   Future<Map<String, dynamic>?> analyzeWithGemini(
       XFile image, String task) async {
+    lastFailReason = null;
     try {
       final bytes = await image.readAsBytes();
       final b64 = base64Encode(bytes);
@@ -124,8 +152,18 @@ class ScanService {
       if (parsed is Map<String, dynamic>) return parsed;
       if (parsed is Map) return Map<String, dynamic>.from(parsed);
       return null;
+    } on http.ClientException catch (e) {
+      if (kDebugMode) debugPrint('Gemini 네트워크 실패: $e');
+      lastFailReason = 'network';
+      return null;
     } catch (e) {
       if (kDebugMode) debugPrint('Gemini 분석 실패: $e');
+      final s = e.toString();
+      if (s.contains('SocketException') ||
+          s.contains('TimeoutException') ||
+          s.contains('Failed host lookup')) {
+        lastFailReason = 'network';
+      }
       return null;
     }
   }

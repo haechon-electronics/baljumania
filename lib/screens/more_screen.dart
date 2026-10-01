@@ -1,5 +1,6 @@
 import 'dart:convert';
 
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
@@ -436,10 +437,10 @@ class MoreScreen extends StatelessWidget {
               OutlinedButton.icon(
                 onPressed: () {
                   Navigator.pop(ctx);
-                  _importBackup(context, app);
+                  _importBackupFromFile(context, app);
                 },
-                icon: const Icon(Icons.settings_backup_restore_rounded),
-                label: const Text('백업에서 복원하기',
+                icon: const Icon(Icons.folder_open_rounded),
+                label: const Text('백업 파일 선택해서 복원',
                     style:
                         TextStyle(fontSize: 17, fontWeight: FontWeight.bold)),
                 style: OutlinedButton.styleFrom(
@@ -451,6 +452,16 @@ class MoreScreen extends StatelessWidget {
                 ),
               ),
               const SizedBox(height: 8),
+              TextButton.icon(
+                onPressed: () {
+                  Navigator.pop(ctx);
+                  _importBackup(context, app);
+                },
+                icon: const Icon(Icons.content_paste_rounded, size: 20),
+                label: const Text('내용 붙여넣기로 복원 (파일 선택이 안 될 때)',
+                    style: TextStyle(fontSize: 14)),
+              ),
+              const SizedBox(height: 4),
               Text(
                 '복원하면 지금 기기의 데이터를 백업 내용으로 완전히 교체해요.',
                 textAlign: TextAlign.center,
@@ -486,6 +497,69 @@ class MoreScreen extends StatelessWidget {
         ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(content: Text('백업 내보내기에 실패했어요: $e')));
       }
+    }
+  }
+
+  /// 백업 파일(.json)을 직접 골라 복원 — 클립보드 붙여넣기 용량 한계 회피
+  Future<void> _importBackupFromFile(BuildContext context, AppState app) async {
+    FilePickerResult? picked;
+    try {
+      picked = await FilePicker.platform.pickFiles(
+        type: FileType.any,
+        withData: true,
+        dialogTitle: '발주매니아 백업 파일 선택',
+      );
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+            content: Text('파일 선택 창을 열 수 없어요. "내용 붙여넣기"로 시도해 주세요.')));
+      }
+      return;
+    }
+    if (picked == null || picked.files.isEmpty) return;
+    final file = picked.files.first;
+    final bytes = file.bytes;
+    if (bytes == null || bytes.isEmpty) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+            content: Text('파일을 읽지 못했어요. 다른 파일을 골라 주세요.')));
+      }
+      return;
+    }
+    String raw;
+    try {
+      raw = utf8.decode(bytes);
+    } catch (_) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+            content: Text('발주매니아 백업 파일(.json)이 아닌 것 같아요.')));
+      }
+      return;
+    }
+    if (!context.mounted) return;
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (c2) => AlertDialog(
+        title: const Text('정말 복원할까요?'),
+        content: Text(
+            '파일: ${file.name}\n\n지금 기기에 있는 모든 데이터가 이 백업 내용으로 교체돼요. 되돌릴 수 없어요.'),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(c2, false),
+              child: const Text('취소')),
+          TextButton(
+              onPressed: () => Navigator.pop(c2, true),
+              child: const Text('복원',
+                  style: TextStyle(
+                      color: Colors.red, fontWeight: FontWeight.bold))),
+        ],
+      ),
+    );
+    if (ok != true) return;
+    final err = await app.importBackupJson(raw);
+    if (context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(err ?? '복원 완료! 데이터를 되살렸어요 ✅')));
     }
   }
 

@@ -51,12 +51,35 @@ class BaljuManiaApp extends StatelessWidget {
 class MainShell extends StatefulWidget {
   const MainShell({super.key});
 
+  /// 탭 전환 요청 (홈 히어로 카드 탭 → 발주/재고 탭으로 이동 등)
+  /// 0 홈 / 1 발주 / 2 재고 / 3 거래처 / 4 더보기
+  static final ValueNotifier<int> tabRequest = ValueNotifier<int>(0);
+
   @override
   State<MainShell> createState() => _MainShellState();
 }
 
 class _MainShellState extends State<MainShell> {
   int _index = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    MainShell.tabRequest.addListener(_onTabRequest);
+  }
+
+  @override
+  void dispose() {
+    MainShell.tabRequest.removeListener(_onTabRequest);
+    super.dispose();
+  }
+
+  void _onTabRequest() {
+    final i = MainShell.tabRequest.value;
+    if (i >= 0 && i < _screens.length && i != _index) {
+      setState(() => _index = i);
+    }
+  }
 
   final _screens = const [
     HomeScreen(),

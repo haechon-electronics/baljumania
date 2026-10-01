@@ -29,7 +29,14 @@ class NotificationService {
 
       const androidInit =
           AndroidInitializationSettings('@mipmap/ic_launcher');
-      const initSettings = InitializationSettings(android: androidInit);
+      // iOS: 권한은 아래에서 명시적으로 요청 (초기화 시 자동 팝업 끄기)
+      const iosInit = DarwinInitializationSettings(
+        requestAlertPermission: false,
+        requestBadgePermission: false,
+        requestSoundPermission: false,
+      );
+      const initSettings =
+          InitializationSettings(android: androidInit, iOS: iosInit);
       await _plugin.initialize(initSettings);
 
       // Android 13+ 알림 권한 요청
@@ -37,6 +44,11 @@ class NotificationService {
           .resolvePlatformSpecificImplementation<
               AndroidFlutterLocalNotificationsPlugin>()
           ?.requestNotificationsPermission();
+      // iOS 알림 권한 요청 (없으면 iOS에서 예약 알림이 전부 무음)
+      await _plugin
+          .resolvePlatformSpecificImplementation<
+              IOSFlutterLocalNotificationsPlugin>()
+          ?.requestPermissions(alert: true, badge: true, sound: true);
 
       _ready = true;
     } catch (e) {
@@ -53,6 +65,11 @@ class NotificationService {
           priority: Priority.high,
           enableVibration: true,
           styleInformation: BigTextStyleInformation(''),
+        ),
+        iOS: DarwinNotificationDetails(
+          presentAlert: true,
+          presentBadge: true,
+          presentSound: true,
         ),
       );
 

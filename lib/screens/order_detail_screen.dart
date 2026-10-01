@@ -7,6 +7,7 @@ import '../app_state.dart';
 import '../models.dart';
 import '../theme.dart';
 import '../utils.dart';
+import 'order_edit_screen.dart';
 
 /// 발주 상세: 입고 체크 + 발주 문자 생성/복사/문자/공유
 class OrderDetailScreen extends StatefulWidget {
@@ -61,7 +62,18 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
       appBar: AppBar(
         title: const Text('발주 상세'),
         actions: [
+          if (order.status != 'done')
+            IconButton(
+              tooltip: '발주 수정',
+              icon: const Icon(Icons.edit_rounded, size: 24),
+              onPressed: () => Navigator.push(
+                context,
+                MaterialPageRoute(
+                    builder: (_) => OrderEditScreen(editOrder: order)),
+              ),
+            ),
           IconButton(
+            tooltip: '발주 삭제',
             icon: const Icon(Icons.delete_outline_rounded, size: 26),
             onPressed: () async {
               final ok = await showDialog<bool>(
@@ -184,8 +196,16 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
               const Spacer(),
               if (order.status != 'done')
                 TextButton.icon(
-                  onPressed: () =>
-                      context.read<AppState>().receiveAllLines(order!),
+                  onPressed: () async {
+                    final created = await context
+                        .read<AppState>()
+                        .receiveAllLines(order!);
+                    if (!context.mounted) return;
+                    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                        content: Text(created > 0
+                            ? '전체 입고 완료! 재고에 없던 품목 $created개는 새로 등록했어요.'
+                            : '전체 입고 완료! 재고에 반영했어요.')));
+                  },
                   icon: const Icon(Icons.done_all_rounded, size: 24),
                   label: const Text('전체 입고',
                       style: TextStyle(
@@ -243,9 +263,17 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
                                     fontSize: 16,
                                     fontWeight: FontWeight.bold),
                               ),
-                              onPressed: () => context
-                                  .read<AppState>()
-                                  .receiveOrderLine(order!, e.key),
+                              onPressed: () async {
+                                final created = await context
+                                    .read<AppState>()
+                                    .receiveOrderLine(order!, e.key);
+                                if (!context.mounted) return;
+                                ScaffoldMessenger.of(context)
+                                    .showSnackBar(SnackBar(
+                                        content: Text(created
+                                            ? '${line.itemName} 입고 완료 · 재고에 없던 품목이라 새로 등록했어요'
+                                            : '${line.itemName} 입고 완료 · 재고 +${formatQty(line.qty)}${line.unit}')));
+                              },
                               child: const Text('입고 확인'),
                             ),
                     ),
@@ -351,6 +379,35 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
                   label: '문자 보내기',
                   onTap: () async {
                     final phone = supplier?.phone ?? '';
+                    if (phone.trim().isEmpty) {
+                      // 번호 없으면 문자앱이 받는 사람 비워두고 열림 → 미리 안내
+                      final go = await showDialog<bool>(
+                        context: context,
+                        builder: (ctx) => AlertDialog(
+                          title: const Text('거래처 전화번호 없음',
+                              style: TextStyle(
+                                  fontSize: 19,
+                                  fontWeight: FontWeight.bold)),
+                          content: const Text(
+                              '이 거래처에 전화번호가 등록되어 있지 않아요.\n거래처 탭에서 번호를 등록해 두면 다음부터 바로 보낼 수 있어요.\n\n지금은 받는 사람을 직접 고르고 보낼까요?',
+                              style: TextStyle(fontSize: 16, height: 1.4)),
+                          actions: [
+                            TextButton(
+                                onPressed: () => Navigator.pop(ctx, false),
+                                child: const Text('취소',
+                                    style: TextStyle(fontSize: 17))),
+                            TextButton(
+                                onPressed: () => Navigator.pop(ctx, true),
+                                child: const Text('문자앱 열기',
+                                    style: TextStyle(
+                                        fontSize: 17,
+                                        fontWeight: FontWeight.bold,
+                                        color: AppColors.primary))),
+                          ],
+                        ),
+                      );
+                      if (go != true || !context.mounted) return;
+                    }
                     // queryParameters는 공백을 '+'로 인코딩해 일부 문자앱에서
                     // 본문에 '+'가 그대로 보이는 문제가 있어 직접 인코딩한다.
                     final uri = Uri(

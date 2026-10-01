@@ -82,6 +82,8 @@ class PurchaseScreen extends StatelessWidget {
                                   fontSize: 17,
                                   fontWeight: FontWeight.bold,
                                   color: AppColors.primary)),
+                          // 탭 → 수정, 길게 → 삭제
+                          onTap: () => _showEditSheet(context, purchase: p),
                           onLongPress: () async {
                             final ok = await showDialog<bool>(
                               context: context,
@@ -128,7 +130,7 @@ class PurchaseScreen extends StatelessWidget {
     );
   }
 
-  static void _showEditSheet(BuildContext context) {
+  static void _showEditSheet(BuildContext context, {SimplePurchase? purchase}) {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -137,25 +139,40 @@ class PurchaseScreen extends StatelessWidget {
       builder: (ctx) => Padding(
         padding:
             EdgeInsets.only(bottom: MediaQuery.of(ctx).viewInsets.bottom),
-        child: const _PurchaseEditSheet(),
+        child: _PurchaseEditSheet(purchase: purchase),
       ),
     );
   }
 }
 
 class _PurchaseEditSheet extends StatefulWidget {
-  const _PurchaseEditSheet();
+  final SimplePurchase? purchase; // null이면 신규
+  const _PurchaseEditSheet({this.purchase});
 
   @override
   State<_PurchaseEditSheet> createState() => _PurchaseEditSheetState();
 }
 
 class _PurchaseEditSheetState extends State<_PurchaseEditSheet> {
-  final _sourceCtrl = TextEditingController();
-  final _itemsCtrl = TextEditingController();
-  final _amountCtrl = TextEditingController();
-  String _category = '소모품';
-  DateTime _date = DateTime.now();
+  late final TextEditingController _sourceCtrl;
+  late final TextEditingController _itemsCtrl;
+  late final TextEditingController _amountCtrl;
+  late String _category;
+  late DateTime _date;
+
+  bool get _isEdit => widget.purchase != null;
+
+  @override
+  void initState() {
+    super.initState();
+    final p = widget.purchase;
+    _sourceCtrl = TextEditingController(text: p?.source ?? '');
+    _itemsCtrl = TextEditingController(text: p?.itemsText ?? '');
+    _amountCtrl = TextEditingController(
+        text: p != null && p.amount > 0 ? p.amount.toInt().toString() : '');
+    _category = p?.category ?? '소모품';
+    _date = (p != null ? DateTime.tryParse(p.date) : null) ?? DateTime.now();
+  }
 
   @override
   void dispose() {
@@ -179,7 +196,7 @@ class _PurchaseEditSheetState extends State<_PurchaseEditSheet> {
       return;
     }
     final p = SimplePurchase(
-      id: '',
+      id: widget.purchase?.id ?? '',
       date: _date.toIso8601String().substring(0, 10),
       source: _sourceCtrl.text.trim(),
       itemsText: _itemsCtrl.text.trim(),
@@ -199,9 +216,9 @@ class _PurchaseEditSheetState extends State<_PurchaseEditSheet> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text('구매 기록 추가',
-                style:
-                    TextStyle(fontSize: 21, fontWeight: FontWeight.bold)),
+            Text(_isEdit ? '구매 기록 수정' : '구매 기록 추가',
+                style: const TextStyle(
+                    fontSize: 21, fontWeight: FontWeight.bold)),
             const SizedBox(height: 16),
             Row(
               children: [
@@ -280,7 +297,7 @@ class _PurchaseEditSheetState extends State<_PurchaseEditSheet> {
             ElevatedButton.icon(
               onPressed: _save,
               icon: const Icon(Icons.check_rounded, size: 26),
-              label: const Text('저장'),
+              label: Text(_isEdit ? '수정 완료' : '저장'),
             ),
           ],
         ),

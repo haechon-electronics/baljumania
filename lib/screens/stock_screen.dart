@@ -15,6 +15,14 @@ class StockScreen extends StatefulWidget {
 
 class _StockScreenState extends State<StockScreen> {
   String _category = '전체'; // 전체 + kStockCategories
+  final _searchCtrl = TextEditingController();
+  String _q = '';
+
+  @override
+  void dispose() {
+    _searchCtrl.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -23,6 +31,14 @@ class _StockScreenState extends State<StockScreen> {
     if (_category != '전체') {
       items = items.where((i) => i.category == _category).toList();
     }
+    final q = _q.replaceAll(' ', '').toLowerCase();
+    if (q.isNotEmpty) {
+      items = items
+          .where((i) =>
+              i.name.replaceAll(' ', '').toLowerCase().contains(q))
+          .toList();
+    }
+    final showSearch = app.stockItems.length > 8;
     // 부족한 것 먼저
     items.sort((a, b) {
       if (a.isLow != b.isLow) return a.isLow ? -1 : 1;
@@ -43,6 +59,32 @@ class _StockScreenState extends State<StockScreen> {
       ),
       body: Column(
         children: [
+          if (showSearch)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 10, 16, 0),
+              child: TextField(
+                controller: _searchCtrl,
+                style: const TextStyle(fontSize: 17),
+                decoration: InputDecoration(
+                  hintText: '품목 이름 검색',
+                  prefixIcon: const Icon(Icons.search_rounded),
+                  suffixIcon: _q.isEmpty
+                      ? null
+                      : IconButton(
+                          tooltip: '검색어 지우기',
+                          icon: const Icon(Icons.clear_rounded),
+                          onPressed: () {
+                            _searchCtrl.clear();
+                            setState(() => _q = '');
+                          },
+                        ),
+                  fillColor: Colors.white,
+                  contentPadding: const EdgeInsets.symmetric(
+                      horizontal: 14, vertical: 12),
+                ),
+                onChanged: (v) => setState(() => _q = v),
+              ),
+            ),
           SizedBox(
             height: 58,
             child: ListView(
@@ -82,10 +124,15 @@ class _StockScreenState extends State<StockScreen> {
           ),
           Expanded(
             child: items.isEmpty
-                ? const Center(
-                    child: Text('등록된 품목이 없습니다.\n오른쪽 아래 버튼으로 품목을 추가하세요!',
+                ? Center(
+                    child: Text(
+                        q.isNotEmpty
+                            ? '"$_q" 검색 결과가 없어요.'
+                            : _category != '전체'
+                                ? '$_category 분류에 품목이 없어요.'
+                                : '등록된 품목이 없습니다.\n오른쪽 아래 버튼으로 품목을 추가하세요!',
                         textAlign: TextAlign.center,
-                        style: TextStyle(
+                        style: const TextStyle(
                             fontSize: 17, color: AppColors.textGrey)),
                   )
                 : ListView.builder(
@@ -169,6 +216,8 @@ class _StockCard extends StatelessWidget {
           context,
           MaterialPageRoute(builder: (_) => StockEditScreen(item: item)),
         ),
+        // 길게 누르면 수량만 빠르게 조정 (수정 화면 안 거치고)
+        onLongPress: () => _quickAdjust(context),
         child: Padding(
           padding: const EdgeInsets.all(16),
           child: Row(
@@ -270,13 +319,94 @@ class _StockCard extends StatelessWidget {
     );
   }
 
+  /// 수량 빠른 조정 시트: − / + / 직접 입력
+  void _quickAdjust(BuildContext context) {
+    final app = context.read<AppState>();
+    double qty = item.quantity;
+    final ctrl = TextEditingController(text: formatQty(qty));
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setSheet) {
+          void setQty(double v) {
+            qty = v < 0 ? 0 : v;
+            ctrl.text = formatQty(qty);
+            setSheet(() {});
+          }
+          return Padding(
+            padding: EdgeInsets.fromLTRB(
+                20, 20, 20, 20 + MediaQuery.of(ctx).viewInsets.bottom),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Text('${item.name} 수량 조정',
+                    style: const TextStyle(
+                        fontSize: 20, fontWeight: FontWeight.bold)),
+                const SizedBox(height: 4),
+                Text('현재 ${formatQty(item.quantity)}${item.unit}',
+                    style: const TextStyle(
+                        fontSize: 15, color: AppColors.textGrey)),
+                const SizedBox(height: 16),
+                Row(
+                  children: [
+                    _AdjBtn(label: '−5', onTap: () => setQty(qty - 5)),
+                    const SizedBox(width: 8),
+                    _AdjBtn(label: '−1', onTap: () => setQty(qty - 1)),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: TextField(
+                        controller: ctrl,
+                        textAlign: TextAlign.center,
+                        keyboardType: const TextInputType.numberWithOptions(
+                            decimal: true),
+                        inputFormatters: [decimalInputFormatter()],
+                        style: const TextStyle(
+                            fontSize: 24, fontWeight: FontWeight.bold),
+                        decoration: InputDecoration(suffixText: item.unit),
+                        onChanged: (v) {
+                          final d = double.tryParse(v);
+                          if (d != null) qty = d;
+                        },
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    _AdjBtn(label: '+1', onTap: () => setQty(qty + 1)),
+                    const SizedBox(width: 8),
+                    _AdjBtn(label: '+5', onTap: () => setQty(qty + 5)),
+                  ],
+                ),
+                const SizedBox(height: 16),
+                FilledButton.icon(
+                  onPressed: () async {
+                    final d = double.tryParse(ctrl.text) ?? qty;
+                    item.quantity = d < 0 ? 0 : d;
+                    await app.saveStockItem(item);
+                    if (ctx.mounted) Navigator.pop(ctx);
+                  },
+                  icon: const Icon(Icons.check_rounded),
+                  label: const Text('저장'),
+                ),
+              ],
+            ),
+          );
+        },
+      ),
+    ).then((_) => ctrl.dispose());
+  }
+
   Future<bool?> _confirmDelete(BuildContext context) {
+    final usage = context.read<AppState>().stockUsage(item);
     return showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
         title: const Text('품목 삭제',
             style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
-        content: Text('${item.name}을(를) 삭제하시겠습니까?',
+        content: Text(
+            '${item.name}을(를) 삭제하시겠습니까?'
+            '${usage.pendingOrders > 0 ? '\n\n• 입고 대기 발주 ${usage.pendingOrders}건에 들어 있어요. 삭제해도 입고 시 같은 이름으로 자동 재등록됩니다.' : ''}'
+            '${usage.menus > 0 ? '\n• 레시피 ${usage.menus}개 메뉴에서 쓰고 있어요. 삭제하면 그 메뉴 원가 계산에서 빠집니다.' : ''}',
             style: const TextStyle(fontSize: 17)),
         actions: [
           TextButton(
@@ -288,6 +418,34 @@ class _StockCard extends StatelessWidget {
                   style: TextStyle(
                       fontSize: 17, color: AppColors.danger))),
         ],
+      ),
+    );
+  }
+}
+
+class _AdjBtn extends StatelessWidget {
+  final String label;
+  final VoidCallback onTap;
+  const _AdjBtn({required this.label, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(12),
+      child: Container(
+        width: 48,
+        height: 48,
+        alignment: Alignment.center,
+        decoration: BoxDecoration(
+          color: AppColors.primarySoft,
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Text(label,
+            style: const TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.bold,
+                color: AppColors.primary)),
       ),
     );
   }

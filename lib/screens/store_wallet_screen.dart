@@ -28,6 +28,7 @@ class _StoreWalletScreenState extends State<StoreWalletScreen> {
     final info = app.storeInfo;
 
     return Scaffold(
+      backgroundColor: AppColors.background,
       appBar: AppBar(title: const Text('가게 서류지갑')),
       body: ListView(
         padding: const EdgeInsets.all(16),

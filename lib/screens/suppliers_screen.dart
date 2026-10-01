@@ -169,12 +169,46 @@ class _SupplierEditSheetState extends State<_SupplierEditSheet> {
                 const Spacer(),
                 if (isEdit)
                   IconButton(
+                    tooltip: '거래처 삭제',
                     icon: const Icon(Icons.delete_outline_rounded,
                         color: AppColors.danger, size: 26),
                     onPressed: () async {
-                      await context
-                          .read<AppState>()
-                          .deleteSupplier(widget.supplier!.id);
+                      final app = context.read<AppState>();
+                      final s = widget.supplier!;
+                      final linked = app.supplierItemCount(s.id);
+                      final pending = app.orders
+                          .where((o) =>
+                              o.supplierId == s.id && o.status != 'done')
+                          .length;
+                      final ok = await showDialog<bool>(
+                        context: context,
+                        builder: (ctx) => AlertDialog(
+                          title: const Text('거래처 삭제',
+                              style: TextStyle(
+                                  fontSize: 20,
+                                  fontWeight: FontWeight.bold)),
+                          content: Text(
+                            '${s.name} 거래처를 삭제할까요?'
+                            '${linked > 0 ? '\n\n• 연결된 품목 $linked개는 "거래처 미지정"으로 바뀝니다.' : ''}'
+                            '${pending > 0 ? '\n• 입고 대기 중인 발주 $pending건은 그대로 남습니다.' : ''}',
+                            style: const TextStyle(fontSize: 16),
+                          ),
+                          actions: [
+                            TextButton(
+                                onPressed: () => Navigator.pop(ctx, false),
+                                child: const Text('취소',
+                                    style: TextStyle(fontSize: 17))),
+                            TextButton(
+                                onPressed: () => Navigator.pop(ctx, true),
+                                child: const Text('삭제',
+                                    style: TextStyle(
+                                        fontSize: 17,
+                                        color: AppColors.danger))),
+                          ],
+                        ),
+                      );
+                      if (ok != true || !context.mounted) return;
+                      await app.deleteSupplier(s.id);
                       if (context.mounted) Navigator.pop(context);
                     },
                   ),

@@ -5,6 +5,7 @@ import '../app_state.dart';
 import '../models.dart';
 import '../theme.dart';
 import '../utils.dart';
+import '../main.dart' show MainShell;
 import 'order_edit_screen.dart';
 import 'order_detail_screen.dart';
 import 'smart_scan_screen.dart';
@@ -150,16 +151,19 @@ class HomeScreen extends StatelessWidget {
                         _HeroStat(
                             value: '${overdue.length}',
                             label: '미입고',
-                            warn: overdue.isNotEmpty),
+                            warn: overdue.isNotEmpty,
+                            onTap: () => MainShell.tabRequest.value = 1),
                         _heroDivider(),
                         _HeroStat(
                             value: '${pending.length}',
-                            label: '입고 대기'),
+                            label: '입고 대기',
+                            onTap: () => MainShell.tabRequest.value = 1),
                         _heroDivider(),
                         _HeroStat(
                             value: '${lowStock.length}',
                             label: '재고 부족',
-                            warn: lowStock.isNotEmpty),
+                            warn: lowStock.isNotEmpty,
+                            onTap: () => MainShell.tabRequest.value = 2),
                       ],
                     ),
                   ],
@@ -347,14 +351,23 @@ class _HeroStat extends StatelessWidget {
   final String value;
   final String label;
   final bool warn;
+  final VoidCallback? onTap;
 
   const _HeroStat(
-      {required this.value, required this.label, this.warn = false});
+      {required this.value,
+      required this.label,
+      this.warn = false,
+      this.onTap});
 
   @override
   Widget build(BuildContext context) {
     return Expanded(
-      child: Column(
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(12),
+        child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 4),
+        child: Column(
         children: [
           Row(
             mainAxisAlignment: MainAxisAlignment.center,
@@ -387,6 +400,8 @@ class _HeroStat extends StatelessWidget {
                   fontWeight: FontWeight.w600,
                   color: Colors.white.withValues(alpha: 0.75))),
         ],
+      ),
+        ),
       ),
     );
   }

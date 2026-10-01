@@ -270,7 +270,7 @@ class _ReceiptScanScreenState extends State<ReceiptScanScreen>
     } else if (ocr.isNotEmpty) {
       r = parseReceiptText(ocr);
     } else {
-      toast('글자를 인식하지 못했어요. 초점을 맞춰 다시 찍어주세요.');
+      toast(ScanService.instance.failMessage());
       return;
     }
     if (r.date.isEmpty) r.date = todayIso();
@@ -505,7 +505,7 @@ class _SalesReportScanScreenState extends State<SalesReportScanScreen>
     } else if (ocr.isNotEmpty) {
       r = parseSalesReportText(ocr);
     } else {
-      toast('글자를 인식하지 못했어요. 초점을 맞춰 다시 찍어주세요.');
+      toast(ScanService.instance.failMessage());
       return;
     }
     if (r.date.isEmpty) r.date = todayIso();
@@ -833,7 +833,7 @@ class _MenuBoardScanScreenState extends State<MenuBoardScanScreen>
     } else if (ocr.isNotEmpty) {
       menus = parseMenuBoardText(ocr);
     } else {
-      toast('글자를 인식하지 못했어요. 초점을 맞춰 다시 찍어주세요.');
+      toast(ScanService.instance.failMessage());
       return;
     }
     if (menus.isEmpty) {
@@ -960,7 +960,7 @@ class _BuyListScanScreenState extends State<BuyListScanScreen>
     } else if (ocr.isNotEmpty) {
       items = parseBuyListText(ocr);
     } else {
-      toast('글자를 인식하지 못했어요. 초점을 맞춰 다시 찍어주세요.');
+      toast(ScanService.instance.failMessage());
       return;
     }
     if (items.isEmpty) {
