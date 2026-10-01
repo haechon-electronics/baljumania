@@ -44,7 +44,7 @@ workflows:
     max_build_duration: 60
     instance_type: mac_mini_m2
     integrations:
-      app_store_connect: baljumania_asc_key   # Codemagic 팀 설정에서 App Store Connect API 키 등록 후 이름 일치시킬 것
+      app_store_connect: rawgram-asc-key   # Codemagic Settings → Integrations에 등록된 키 이름 (Key ID: 2JW2B29LCQ)
     environment:
       groups:
         - gemini
