@@ -36,24 +36,25 @@
 | 0 | **치명** | 최초 실행 시 시드 후 `_loadAll()` 누락 → 모든 탭 빈 화면 | `app_state.dart init()` | 스크린샷 |
 | 0-1 | **치명** | `_newId()` 마이크로초 충돌로 웹에서 시드 5개 중 3개만 저장 | `_newId()` seq+random | 스크린샷(5개 표시) |
 | 1 | 높음 | 스캔 생성 라인(itemId '') 입고 시 재고 미반영 | `_applyReceivedLine` 신규 StockItem 자동 생성, `receiveOrderLine→bool`, `receiveAllLines→int`, 스낵바 안내 | 스크린샷("두부 입고 완료 · 재고 +10모") |
-| 2 | 중 | 재고 삭제 참조 경고 없음 | `stockUsage()` + stock_screen/stock_edit_screen 삭제 다이얼로그 | 코드·analyze |
+| 2 | 중 | 재고 삭제 참조 경고 없음 | `stockUsage()` + stock_screen/stock_edit_screen 삭제 다이얼로그 | 스크린샷(두부 스와이프 → "입고 대기 발주 1건에 들어 있어요") |
 | 3 | 중 | 거래처 즉시 삭제 | `supplierItemCount()` + 확인 다이얼로그 | 스크린샷("연결된 품목 3개") |
-| 4 | 중 | 간편구매 수정 불가 | `purchase_screen.dart` 탭→편집 시트 | 코드·analyze |
-| 5 | 중 | 발주 수정 불가 | `order_edit_screen.dart editOrder` 모드, `updateOrder()`, 입고된 라인 잠금 | 스크린샷(수정 화면 프리필) |
+| 4 | 중 | 간편구매 수정 불가 | `purchase_screen.dart` 탭→편집 시트 | 스크린샷(등록→탭→"구매 기록 수정" 프리필→금액 변경 저장→리스트 반영) |
+| 5 | 중 | 발주 수정 불가 | `order_edit_screen.dart editOrder` 모드, `updateOrder()`, 입고된 라인 잠금 | 스크린샷(10모→12모 저장 → 상세 ₩14,400·문자 본문 12모·"발주 수정 완료!" 스낵바) |
 | 6 | 높음 | `deleteSale` 재고 복원 안 함 | `_applySaleStock(sale, sign:1)` | 코드 |
 | 7 | 중 | 백업 복원 붙여넣기만 | `file_picker` 파일 선택 복원 + 붙여넣기 폴백 | 스크린샷(시트 버튼 표시) |
 | 8 | 높음 | iOS 알림 미초기화 | Darwin init/permissions/details | 실기기 필요 |
 | 9 | 중 | AdMob iOS ID | `ad_config.dart` 플랫폼 분기(iOS는 Google 테스트 ID). **실제 iOS 광고단위/앱 ID는 AdMob 콘솔에서 발급 후 `ad_config.dart`·`Info.plist` 교체 필요** | 코드 |
 | 10 | 낮음 | OCR 실패 원인 안내 없음 | `scan_service.lastFailReason/failMessage()` → scan/smart_scan 화면 | 코드 |
 | 11 | 중 | 이름 contains 오매칭 | `_findStockByName` 정확→공백제거→(길이≥2 & 후보 1개)만 부분일치 | 코드 |
-| 12 | 낮음 | 배경색 미지정 | store_wallet/tax_export `backgroundColor` | 코드 |
-| + | UX | 홈 지표 탭→탭 이동(`MainShell.tabRequest`), 재고/품목선택 검색(8개 초과 시), 재고 롱프레스 수량 조정, 문자 전송 시 전화번호 없음 다이얼로그, 근무시간 24시 이상 "익일" 표기, 발주일 과거 선택 가드 | 각 화면 | 지표 탭·수량조정 스크린샷 |
+| 12 | 낮음 | 배경색 미지정 | store_wallet/tax_export `backgroundColor` | 스크린샷(서류지갑 배경 일치) |
+| + | UX | 홈 지표 탭→탭 이동(`MainShell.tabRequest`), 재고/품목선택 검색(8개 초과 시), 재고 롱프레스 수량 조정, 문자 전송 시 전화번호 없음 다이얼로그, 근무시간 24시 이상 "익일" 표기, 발주일 과거 선택 가드 | 각 화면 | 지표 탭·수량조정·전화번호 없음 다이얼로그(거래처 번호 삭제 후 문자 보내기 → "거래처 전화번호 없음" [취소/문자앱 열기]) 스크린샷 |
 
 ## 4. 다음 작업자 TODO
 ### A. 남은 확인 항목
 1. iOS 실기기: 알림 권한/표시(#8), ML Kit 한국어 모델 첫 다운로드.
 2. AdMob 실제 iOS 앱 ID·배너 ID 발급 후 교체(#9).
-3. 미촬영 재검증: 간편구매 수정 시트, 재고 삭제 다이얼로그 문구, 발주 수정 저장 경로, 문자 전화번호 없음 다이얼로그(전화번호 없는 거래처 필요), 품목 9개 이상 시 검색창. (코드는 analyze 통과·빌드 성공 상태)
+3. 미촬영 재검증(코드는 analyze 통과·빌드 성공): 품목 9개 이상 시 재고 검색창 / 발주 품목 선택 시트 검색창, 백업 붙여넣기 복원 실행 경로. 테스트용 10품목 백업 JSON 생성 스크립트는 샌드박스 `/tmp/bk.json` 참고(앱 `exportBackupJson` 포맷).
+4. 검증 하네스 메모: headless Chrome CDP 터치 좌표는 CSS px(430×932, DPR 1 실측). 모달 닫힘 직후 연속 탭은 무시되므로 별도 호출로 분리할 것.
 
 ### B. 시장조사 기반 추가 기능 제안 (경쟁앱 실측: 재고요 19,900~29,900원/월, 주담 9,900원/월, MIRI, 도도카트, 일기월장, 캐시노트)
 경쟁앱이 전부 갖고 있고 발주매니아에 **없는** 것:
