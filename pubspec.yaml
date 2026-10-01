@@ -2,7 +2,7 @@ name: baljumania
 description: "발주매니아 - 요식업 소상공인을 위한 발주·재고·매출·직원 관리 앱"
 publish_to: 'none'
 
-version: 1.0.0+1
+version: 1.0.1+2
 
 environment:
   sdk: ^3.9.2
