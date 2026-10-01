@@ -48,13 +48,31 @@ workflows:
     environment:
       groups:
         - gemini
+        - ios_signing   # 환경변수 CERTIFICATE_PRIVATE_KEY (RSA 개인키, Secure) 를 이 그룹에 등록
+      vars:
+        BUNDLE_ID: com.baljumania.orders
       flutter: 3.35.4
       xcode: latest
       cocoapods: default
-      ios_signing:
-        distribution_type: app_store
-        bundle_identifier: com.baljumania.orders
     scripts:
+      - name: 키체인 초기화
+        script: keychain initialize
+      - name: 서명 파일 자동 생성/가져오기 (App Store Connect API)
+        script: |
+          if [ -z "$CERTIFICATE_PRIVATE_KEY" ]; then
+            echo "❌ CERTIFICATE_PRIVATE_KEY 환경변수가 비어 있습니다!"
+            echo "   Codemagic → App settings → Environment variables 에서"
+            echo "   변수명 CERTIFICATE_PRIVATE_KEY 를 'ios_signing' 그룹에 Secure로 등록하세요."
+            echo "   값: RSA 개인키 전체 (-----BEGIN RSA PRIVATE KEY----- 부터 END 까지)"
+            exit 1
+          fi
+          app-store-connect fetch-signing-files "$BUNDLE_ID" \
+            --type IOS_APP_STORE \
+            --create
+      - name: 인증서 키체인 등록
+        script: keychain add-certificates
+      - name: Xcode 프로젝트에 서명 설정 적용
+        script: xcode-project use-profiles
       - name: AI 키 파일 생성 (저장소 미포함 보안 파일)
         script: |
           if [ -z "$GEMINI_KEY_DART_B64" ]; then
