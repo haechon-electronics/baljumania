@@ -59,6 +59,8 @@ class AppState extends ChangeNotifier {
       if (!seeded) {
         await _seedSampleData();
         await _settingsBox.put('seeded', true);
+        // 시드 직후 메모리 목록 재적재 (미호출 시 첫 실행 화면이 전부 비어 보이는 버그)
+        _loadAll();
       }
     }
 
