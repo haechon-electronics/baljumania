@@ -47,8 +47,7 @@ workflows:
       app_store_connect: rawgram-asc-key   # Codemagic Settings → Integrations에 등록된 키 이름 (Key ID: 2JW2B29LCQ)
     environment:
       groups:
-        - gemini
-        - ios_signing   # 환경변수 CERTIFICATE_PRIVATE_KEY (RSA 개인키, Secure) 를 이 그룹에 등록
+        - gemini   # GEMINI_KEY_DART_B64 + CERTIFICATE_PRIVATE_KEY (RSA 개인키, Secure) 둘 다 이 그룹에 등록
       vars:
         BUNDLE_ID: com.baljumania.orders
       flutter: 3.35.4
@@ -62,7 +61,7 @@ workflows:
           if [ -z "$CERTIFICATE_PRIVATE_KEY" ]; then
             echo "❌ CERTIFICATE_PRIVATE_KEY 환경변수가 비어 있습니다!"
             echo "   Codemagic → App settings → Environment variables 에서"
-            echo "   변수명 CERTIFICATE_PRIVATE_KEY 를 'ios_signing' 그룹에 Secure로 등록하세요."
+            echo "   변수명 CERTIFICATE_PRIVATE_KEY 를 'gemini' 그룹에 Secure로 등록하세요."
             echo "   값: RSA 개인키 전체 (-----BEGIN RSA PRIVATE KEY----- 부터 END 까지)"
             exit 1
           fi
